@@ -4,7 +4,7 @@ import numpy as np
 
 class RawDataset:
 
-    def __init__(self, data_file, output_path):
+    def __init__(self, data_file, output_path, n_top=30000):
         # Set output path
         self.output_path = output_path
 
@@ -14,7 +14,7 @@ class RawDataset:
             text = f.read()
 
         # about our data
-        words = utils.preprocess(text)
+        words, self.top_words = utils.preprocess(text, n_top)
 
         # word to int and int to word dictionaries, convert words to list of int
         # 0: vocab_to_int, 1: int_to_vocab, 2: cont_to_int, 3: int_to_cont
@@ -32,21 +32,28 @@ class RawDataset:
         self.cont_to_int = dicts[2]
         self.int_to_cont = dicts[3]
         self.words = train_words
-
-        # Save dictionaries
-        utils.save_dict_to_file(dicts[0], output_path + '/dict/vocab_to_int.dict')
-        utils.save_dict_to_file(dicts[1], output_path + '/dict/int_to_vocab.dict')
+        self.n_top = n_top
 
         print("Total words: {}".format(len(words)))
         print("Unique words: {}".format(self.n_vocab))
         print("Unique context: {}".format(self.n_context))
         print("Data Prepared!")
 
-    def save_top_words(self, n_top):
-        top_int = utils.get_top_words(self.words, n_top)
-        output = open(self.output_path + '/top_{}_words.txt'.format(n_top), 'w')
-        for word_int, count in top_int:
-            output.write(self.int_to_cont[word_int] + '\n')
+        # Save dictionaries
+        self.save_dicts()
+        self.save_top_words()
+
+    def save_dicts(self):
+        # Save dictionaries
+        utils.save_dict_to_file(self.vocab_to_int, self.output_path + '/dict/vocab_to_int.dict')
+        utils.save_dict_to_file(self.int_to_vocab, self.output_path + '/dict/int_to_vocab.dict')
+        utils.save_dict_to_file(self.cont_to_int, self.output_path + '/dict/cont_to_int.dict')
+        utils.save_dict_to_file(self.int_to_cont, self.output_path + '/dict/int_to_cont.dict')
+
+    def save_top_words(self):
+        output = open(self.output_path + '/top_{}_words.txt'.format(self.n_top), 'w')
+        for word, count in self.top_words:
+            output.write(word + '\n')
         output.close()
 
     def convert_context_to_word(self, context_id):

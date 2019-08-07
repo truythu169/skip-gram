@@ -40,6 +40,6 @@ class Wordsim:
 
 if __name__ == "__main__":
     wordsim = Wordsim()
-    embedding = Embedding.from_file('../output/300dim/embedding.txt')
+    embedding = Embedding.from_file('../output/200dim/embedding.txt')
     result = wordsim.evaluate(embedding)
     wordsim.pprint(result)

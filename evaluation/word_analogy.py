@@ -33,6 +33,12 @@ class WordAnalogy:
         self.y = np.array(answers)
         self.category = np.array(category)
         self.category_high_level = np.array(category_high_level)
+        self.top_words = []
+
+    def set_top_words(self, filename):
+        with open(filename, "r") as f:
+            words = f.read().splitlines()
+        self.top_words = set(words)
 
     def get_data_by_category(self, cat, high_level_category=False):
         if high_level_category:
@@ -41,7 +47,7 @@ class WordAnalogy:
             data_indexes = np.where(self.category == cat)[0]
         return self.X[data_indexes], self.y[data_indexes]
 
-    def evaluate(self, embedding, high_level_category=False):
+    def evaluate(self, embedding, high_level_category=False, restrict_top_words=False):
         # Categories list
         if high_level_category:
             cat_list = set(self.category_high_level)
@@ -63,8 +69,20 @@ class WordAnalogy:
                 y = y_cat[i]
 
                 if embedding.in_vocabs(x) and embedding.in_vocab(y):
-                    skipped_X.append(embedding.indexes(x))
-                    skipped_labels.append(embedding.index(y))
+                    # check  if in top words
+                    skip_flag = False
+                    if restrict_top_words:
+                        for x_i in x:
+                            if x_i not in self.top_words:
+                                skip_flag = True
+                                break
+                        if y not in self.top_words:
+                            skip_flag = True
+                    if not skip_flag:
+                        skipped_X.append(embedding.indexes(x))
+                        skipped_labels.append(embedding.index(y))
+                    else:
+                        skip_lines += 1
                 else:
                     skip_lines += 1
 
@@ -116,6 +134,7 @@ class WordAnalogy:
 
 if __name__ == "__main__":
     word_analogy = WordAnalogy()
-    embedding = Embedding.from_file('../output/300dim/embedding.txt')
+    word_analogy.set_top_words('../data/processed data/top_30000_words.txt')
+    embedding = Embedding.from_file('../output/100dim/embedding-embedding=100-200-10.txt')
     result = word_analogy.evaluate(embedding)
     print(result)

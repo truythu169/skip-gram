@@ -2,7 +2,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import utils.tools as utils
-from utils.dataset import Dataset
+from utils.raw_dataset import Dataset
 import os
 
 

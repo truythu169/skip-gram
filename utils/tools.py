@@ -5,7 +5,10 @@ import pickle
 from nltk.corpus import stopwords
 
 
-def preprocess(text):
+def preprocess(text, min_word=20, n_top=30000):
+    # Load stop words
+    stop_words = stopwords.words('english')
+
     # Replace punctuation with tokens so we can use them in our model
     # text = text.lower()
     text = text.replace('.', ' <PERIOD> ')
@@ -22,16 +25,20 @@ def preprocess(text):
     text = text.replace(':', ' <COLON> ')
     words = text.split()
 
-    # Remove all words with  5 or fewer occurences
+    # Remove all words with  min_word or fewer occurences
     word_counts = Counter(words)
-    trimmed_words = [word for word in words if word_counts[word] > 5]
+    trimmed_words = [word for word in words if word_counts[word] > min_word]
 
-    return trimmed_words
+    # Get top words
+    clear_words = [word for word in words if (word.lower() not in stop_words) and (len(word) > 1)]
+    word_counts = Counter(clear_words)
+    top_words = word_counts.most_common(n_top)
+
+    return trimmed_words, top_words
 
 
-def get_train_words(int_words):
-    # implementation of subsampling
-    threshold = 1e-5
+def get_train_words(int_words, threshold=1e-5):
+    """ implementation of subsampling """
     word_counts = Counter(int_words)
     total_count = len(int_words)
     freqs = {word: count / total_count for word, count in word_counts.items()}
@@ -58,7 +65,7 @@ def create_lookup_tables(words):
     cont_to_int = {word: ii for ii, word in int_to_cont.items()}
 
     # dict for words
-    non_stopwords_words = [word for word in words if word.lower() not in stop_words]
+    non_stopwords_words = [word for word in words if (word.lower() not in stop_words) and (len(word) > 1)]
     word_counts = Counter(non_stopwords_words)
     sorted_vocab = sorted(word_counts, key=word_counts.get, reverse=True)
 

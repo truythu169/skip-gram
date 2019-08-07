@@ -2,37 +2,44 @@ import time
 import numpy as np
 import tensorflow as tf
 import utils.tools as utils
-from utils.raw_dataset import Dataset
 import os
 
 
 class SkipGram:
 
     # Constructor
-    def __init__(self, filename, n_embedding):
+    def __init__(self, data_path, n_embedding):
         self.n_embedding = n_embedding
+        self.embedding = np.array([])
+        self.ident = '-embedding={}'.format(n_embedding)
+        self.data_path = data_path
 
+        # create output directory
         self.output_dictionary = 'output/{}dim'.format(n_embedding)
         if not os.path.exists(self.output_dictionary):
             os.makedirs(self.output_dictionary)
-            os.makedirs(self.output_dictionary + '/dict')
-            os.makedirs(self.output_dictionary + '/checkpoints')
 
-        data = Dataset(filename, self.output_dictionary + '/dict')
+        # read dictionaries
+        self.int_to_vocab = utils.load_dict_from_file(data_path + '/dict/int_to_vocab.dict')
+        self.int_to_cont = utils.load_dict_from_file(data_path + '/dict/int_to_cont.dict')
+        self.n_vocab = len(self.int_to_vocab)
+        self.n_context = len(self.int_to_cont)
 
-        self.data = data
-        self.n_vocab = data.n_vocab
-        self.n_context = data.n_context
-        self.embedding = np.array([])
+    def train(self, n_sampled=200, epochs=1, batch_size=10000):
+        self.ident += '-{}-{}'.format(n_sampled, epochs)
 
-    def train(self, n_sampled=200, epochs=10, batch_size=1000, window_size=5, eval_mode=False):
         # computation graph
         train_graph = tf.Graph()
 
         with train_graph.as_default():
-            # placeholders
-            inputs = tf.placeholder(tf.int32, [None], name='inputs')
-            labels = tf.placeholder(tf.int32, [None, None], name='labels')
+            # training data
+            dataset = tf.data.experimental.make_csv_dataset(self.data_path + '/data.csv',
+                                                            batch_size=batch_size,
+                                                            column_names=['input', 'output'],
+                                                            header=False,
+                                                            num_epochs=epochs)
+            datum = dataset.make_one_shot_iterator().get_next()
+            inputs, labels = datum['input'], datum['output']
 
             # embedding layer
             embedding = tf.Variable(tf.random_uniform((self.n_vocab, self.n_embedding), -1, 1))
@@ -43,6 +50,7 @@ class SkipGram:
             softmax_b = tf.Variable(tf.zeros(self.n_context))
 
             # Calculate the loss using negative sampling
+            labels = tf.reshape(labels, [-1, 1])
             loss = tf.nn.sampled_softmax_loss(
                 weights=softmax_w,
                 biases=softmax_b,
@@ -51,67 +59,40 @@ class SkipGram:
                 num_sampled=n_sampled,
                 num_classes=self.n_context)
 
-            # True loss
-            with tf.device("/device:CPU:0"):
-                logits = tf.matmul(embed, tf.transpose(softmax_w)) + softmax_b
-                true_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
-                true_cost = tf.reduce_mean(true_loss)
-
             cost = tf.reduce_mean(loss)
             optimizer = tf.train.AdamOptimizer().minimize(cost)
-
-            saver = tf.train.Saver()
 
         with tf.Session(graph=train_graph) as sess:
             iteration = 1
             loss = 0
             sess.run(tf.global_variables_initializer())
-            loss_his = []
 
-            for e in range(1, epochs + 1):
-                batches = self.data.get_batches(batch_size, window_size)
+            try:
                 start = time.time()
-                for x, y in batches:
-                    feed = {inputs: x,
-                            labels: np.array(y)[:, None]}
-
-                    train_loss, _ = sess.run([cost, optimizer], feed_dict=feed)
-
+                while True:
+                    train_loss, _ = sess.run([cost, optimizer])
                     loss += train_loss
 
                     if iteration % 100 == 0:
                         end = time.time()
-                        print("Epoch {}/{}".format(e, epochs),
-                              "Iteration: {}".format(iteration),
+                        print("Iteration: {}".format(iteration),
                               "Avg. Training loss: {:.4f}".format(loss / 100),
-                              "{:.4f} sec/batch".format((end - start) / 100))
-                        if eval_mode:
-                            binary_labels = utils.label_binarizer(y, self.n_vocab)
-                            true_cost_ = sess.run(true_cost, feed_dict={inputs: x, labels: binary_labels})
-                            print("True cost: {}".format(true_cost_))
-                            loss_his.append(true_cost_)
+                              "{:.4f} sec/ 1.000.000 sample".format((end - start)))
                         loss = 0
                         start = time.time()
 
                     iteration += 1
+            except tf.errors.OutOfRangeError:
+                print("End of dataset")
 
             # export embedding matrix
             self.embedding = embedding.eval()
 
-            # save model to files
-            saver.save(sess, self.output_dictionary + "/checkpoints/text8.ckpt")
-
-        # Save loss history
-        if eval_mode:
-            with open('loss/loss-hist-{}.txt'.format(self.n_embedding), 'w') as f:
-                for item in loss_his:
-                    f.write(str(item)+'\n')
-
     def export_embedding(self):
         # write embedding result to file
-        output = open(self.output_dictionary + '/embedding.txt', 'w')
+        output = open(self.output_dictionary + '/embedding{}.txt'.format(self.ident), 'w')
         for i in range(self.embedding.shape[0]):
-            text = self.data.int_to_vocab[i]
+            text = self.int_to_vocab[i]
             for j in self.embedding[i]:
                 text += ' %f' % j
             text += '\n'
@@ -121,6 +102,6 @@ class SkipGram:
 
 
 if __name__ == "__main__":
-    skip_gram = SkipGram('data/text8', n_embedding=300)
-    skip_gram.train(n_sampled=200, epochs=10, batch_size=1000, window_size=5, eval_mode=False)
+    skip_gram = SkipGram('data/processed data', n_embedding=100)
+    skip_gram.train(n_sampled=200, epochs=10, batch_size=10000)
     skip_gram.export_embedding()
