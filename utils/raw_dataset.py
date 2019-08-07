@@ -2,10 +2,12 @@ import utils.tools as utils
 import numpy as np
 
 
-class Dataset:
+class RawDataset:
 
-    # Constructor
-    def __init__(self, data_file, dict_path):
+    def __init__(self, data_file, output_path):
+        # Set output path
+        self.output_path = output_path
+
         # read data from file
         print('Reading file: ', data_file)
         with open(data_file) as f:
@@ -32,13 +34,20 @@ class Dataset:
         self.words = train_words
 
         # Save dictionaries
-        utils.save_dict_to_file(dicts[0], dict_path + '/vocab_to_int.dict')
-        utils.save_dict_to_file(dicts[1], dict_path + '/int_to_vocab.dict')
+        utils.save_dict_to_file(dicts[0], output_path + '/dict/vocab_to_int.dict')
+        utils.save_dict_to_file(dicts[1], output_path + '/dict/int_to_vocab.dict')
 
         print("Total words: {}".format(len(words)))
         print("Unique words: {}".format(self.n_vocab))
         print("Unique context: {}".format(self.n_context))
         print("Data Prepared!")
+
+    def save_top_words(self, n_top):
+        top_int = utils.get_top_words(self.words, n_top)
+        output = open(self.output_path + '/top_{}_words.txt'.format(n_top), 'w')
+        for word_int, count in top_int:
+            output.write(self.int_to_cont[word_int] + '\n')
+        output.close()
 
     def convert_context_to_word(self, context_id):
         word = self.int_to_cont[context_id]
@@ -58,14 +67,14 @@ class Dataset:
 
     def get_batches(self, batch_size, window_size=5):
         """ Create a generator of word batches as a tuple (inputs, targets) """
-        n_batches = len(self.words) // batch_size
+        n_data = len(self.words)
 
-        # only full batches
-        words = self.words[:n_batches * batch_size]
-
-        for idx in range(0, len(words), batch_size):
+        for idx in range(0, n_data, batch_size):
             x, y = [], []
-            batch = words[idx:idx + batch_size]
+            batch_upper_bound = idx + batch_size
+            batch_upper_bound = n_data if (batch_upper_bound > n_data) else batch_upper_bound
+            batch = self.words[idx:batch_upper_bound]
+
             for ii in range(len(batch)):
                 batch_x = self.convert_context_to_word(batch[ii])
                 if batch_x != False:
