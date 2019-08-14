@@ -1,6 +1,7 @@
-from embedding import Embedding
+from utils.embedding import Embedding
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from statistics import mean
 
 
 class WordAnalogy:
@@ -69,20 +70,8 @@ class WordAnalogy:
                 y = y_cat[i]
 
                 if embedding.in_vocabs(x) and embedding.in_vocab(y):
-                    # check  if in top words
-                    skip_flag = False
-                    if restrict_top_words:
-                        for x_i in x:
-                            if x_i not in self.top_words:
-                                skip_flag = True
-                                break
-                        if y not in self.top_words:
-                            skip_flag = True
-                    if not skip_flag:
-                        skipped_X.append(embedding.indexes(x))
-                        skipped_labels.append(embedding.index(y))
-                    else:
-                        skip_lines += 1
+                    skipped_X.append(embedding.indexes(x))
+                    skipped_labels.append(embedding.index(y))
                 else:
                     skip_lines += 1
 
@@ -110,13 +99,24 @@ class WordAnalogy:
                 distance_matrix[i][X_cat[i]] = 0
 
             # Get nearest word
-            pred_indexes = np.argmax(distance_matrix, axis=1)
+            result = []
+            for i in range(len(X_cat)):
+                most_similar = distance_matrix[i].argsort()[::-1]
+                for j in range(len(most_similar)):
+                    pred = most_similar[j]
+                    if restrict_top_words:
+                        if embedding.word(pred) in self.top_words:
+                            break
+                    else:
+                        break
+
+                result.append(1) if pred == y_cat[i] else result.append(0)
 
             # accuracy
-            acc = np.mean(pred_indexes == y_cat)
+            acc = mean(result)
 
             # result
-            print("Category: %-30s, accuracy: %f" % (cat, acc))
+            print("Category: %-30s, accuracy: %f (all: %d)" % (cat, acc, len(X_cat)))
             predictions[cat] = acc
 
         # overrall
@@ -136,5 +136,4 @@ if __name__ == "__main__":
     word_analogy = WordAnalogy()
     word_analogy.set_top_words('../data/processed data/top_30000_words.txt')
     embedding = Embedding.from_file('../output/100dim/embedding-embedding=100-200-10.txt')
-    result = word_analogy.evaluate(embedding)
-    print(result)
+    result = word_analogy.evaluate(embedding, restrict_top_words=True)

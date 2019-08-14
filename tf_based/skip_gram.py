@@ -11,11 +11,11 @@ class SkipGram:
     def __init__(self, data_path, n_embedding):
         self.n_embedding = n_embedding
         self.embedding = np.array([])
-        self.ident = '-embedding={}'.format(n_embedding)
+        self.ident = '-e={}'.format(n_embedding)
         self.data_path = data_path
 
         # create output directory
-        self.output_dictionary = 'output/{}dim'.format(n_embedding)
+        self.output_dictionary = '../output/{}dim'.format(n_embedding)
         if not os.path.exists(self.output_dictionary):
             os.makedirs(self.output_dictionary)
 
@@ -26,7 +26,7 @@ class SkipGram:
         self.n_context = len(self.int_to_cont)
 
     def train(self, n_sampled=200, epochs=1, batch_size=10000):
-        self.ident += '-{}-{}'.format(n_sampled, epochs)
+        self.ident += '-n_sampled={}-epochs={}-batch_size={}'.format(n_sampled, epochs, batch_size)
 
         # computation graph
         train_graph = tf.Graph()
@@ -87,6 +87,8 @@ class SkipGram:
 
             # export embedding matrix
             self.embedding = embedding.eval()
+            self.softmax_w = softmax_w.eval()
+            self.softmax_b = softmax_b.eval()
 
     def export_embedding(self):
         # write embedding result to file
@@ -100,8 +102,7 @@ class SkipGram:
 
         output.close()
 
-
-if __name__ == "__main__":
-    skip_gram = SkipGram('data/processed data', n_embedding=100)
-    skip_gram.train(n_sampled=200, epochs=10, batch_size=10000)
-    skip_gram.export_embedding()
+    def export_model(self):
+        utils.save_pkl(self.embedding, self.output_dictionary + '/embedding.pkl')
+        utils.save_pkl(self.softmax_w, self.output_dictionary + '/softmax_w.pkl')
+        utils.save_pkl(self.softmax_b, self.output_dictionary + '/softmax_b.pkl')

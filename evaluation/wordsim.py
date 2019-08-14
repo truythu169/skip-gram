@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 import utils.math as umath
-from embedding import Embedding
+from utils.embedding import Embedding
 
 
 class Wordsim:
@@ -40,6 +40,6 @@ class Wordsim:
 
 if __name__ == "__main__":
     wordsim = Wordsim()
-    embedding = Embedding.from_file('../output/200dim/embedding.txt')
+    embedding = Embedding.from_file('../output/embedding-embedding=100-200-10.txt')
     result = wordsim.evaluate(embedding)
     wordsim.pprint(result)

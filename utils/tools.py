@@ -11,18 +11,18 @@ def preprocess(text, min_word=20, n_top=30000):
 
     # Replace punctuation with tokens so we can use them in our model
     # text = text.lower()
-    text = text.replace('.', ' <PERIOD> ')
-    text = text.replace(',', ' <COMMA> ')
-    text = text.replace('"', ' <QUOTATION_MARK> ')
-    text = text.replace(';', ' <SEMICOLON> ')
-    text = text.replace('!', ' <EXCLAMATION_MARK> ')
-    text = text.replace('?', ' <QUESTION_MARK> ')
-    text = text.replace('(', ' <LEFT_PAREN> ')
-    text = text.replace(')', ' <RIGHT_PAREN> ')
-    text = text.replace('--', ' <HYPHENS> ')
-    text = text.replace('?', ' <QUESTION_MARK> ')
+    # text = text.replace('.', ' <PERIOD> ')
+    # text = text.replace(',', ' <COMMA> ')
+    # text = text.replace('"', ' <QUOTATION_MARK> ')
+    # text = text.replace(';', ' <SEMICOLON> ')
+    # text = text.replace('!', ' <EXCLAMATION_MARK> ')
+    # text = text.replace('?', ' <QUESTION_MARK> ')
+    # text = text.replace('(', ' <LEFT_PAREN> ')
+    # text = text.replace(')', ' <RIGHT_PAREN> ')
+    # text = text.replace('--', ' <HYPHENS> ')
+    # text = text.replace('?', ' <QUESTION_MARK> ')
     # text = text.replace('\n', ' <NEW_LINE> ')
-    text = text.replace(':', ' <COLON> ')
+    # text = text.replace(':', ' <COLON> ')
     words = text.split()
 
     # Remove all words with  min_word or fewer occurences
@@ -37,7 +37,7 @@ def preprocess(text, min_word=20, n_top=30000):
     return trimmed_words, top_words
 
 
-def get_train_words(int_words, threshold=1e-5):
+def get_train_words(int_words, threshold=1e-3):
     """ implementation of subsampling """
     word_counts = Counter(int_words)
     total_count = len(int_words)
@@ -75,7 +75,7 @@ def create_lookup_tables(words):
     return [vocab_to_int, int_to_vocab, cont_to_int, int_to_cont]
 
 
-def save_dict_to_file(dict, filename):
+def save_pkl(dict, filename):
     """ Save dictionary to file """
     output = open(filename, 'wb')
     pickle.dump(dict, output, pickle.HIGHEST_PROTOCOL)
@@ -96,4 +96,4 @@ def label_binarizer(labels, n_class):
     labels_b = np.zeros((n_records, n_class))
     labels_b[np.arange(n_records), labels] = 1
 
-    return  labels_b
+    return labels_b

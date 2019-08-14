@@ -20,7 +20,7 @@ if __name__ == "__main__":
         os.makedirs(args.output + '/dict')
 
     # initialize dataset
-    data = RawDataset(args.input, args.output)
+    data = RawDataset(args.input, args.output, args.top_word)
 
     # save processed data back to file
     print('Writing processed data back to file...')
@@ -36,6 +36,4 @@ if __name__ == "__main__":
     output.close()
 
     print('{} rows of data processed!'.format(count))
-
-
 

@@ -14,7 +14,7 @@ class RawDataset:
             text = f.read()
 
         # about our data
-        words, self.top_words = utils.preprocess(text, n_top)
+        words, self.top_words = utils.preprocess(text, n_top=n_top)
 
         # word to int and int to word dictionaries, convert words to list of int
         # 0: vocab_to_int, 1: int_to_vocab, 2: cont_to_int, 3: int_to_cont
@@ -45,10 +45,10 @@ class RawDataset:
 
     def save_dicts(self):
         # Save dictionaries
-        utils.save_dict_to_file(self.vocab_to_int, self.output_path + '/dict/vocab_to_int.dict')
-        utils.save_dict_to_file(self.int_to_vocab, self.output_path + '/dict/int_to_vocab.dict')
-        utils.save_dict_to_file(self.cont_to_int, self.output_path + '/dict/cont_to_int.dict')
-        utils.save_dict_to_file(self.int_to_cont, self.output_path + '/dict/int_to_cont.dict')
+        utils.save_pkl(self.vocab_to_int, self.output_path + '/dict/vocab_to_int.dict')
+        utils.save_pkl(self.int_to_vocab, self.output_path + '/dict/int_to_vocab.dict')
+        utils.save_pkl(self.cont_to_int, self.output_path + '/dict/cont_to_int.dict')
+        utils.save_pkl(self.int_to_cont, self.output_path + '/dict/int_to_cont.dict')
 
     def save_top_words(self):
         output = open(self.output_path + '/top_{}_words.txt'.format(self.n_top), 'w')
