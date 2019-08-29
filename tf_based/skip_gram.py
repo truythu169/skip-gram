@@ -20,12 +20,12 @@ class SkipGram:
             os.makedirs(self.output_dictionary)
 
         # read dictionaries
-        self.int_to_vocab = utils.load_dict_from_file(data_path + '/dict/int_to_vocab.dict')
-        self.int_to_cont = utils.load_dict_from_file(data_path + '/dict/int_to_cont.dict')
+        self.int_to_vocab = utils.load_pkl(data_path + '/dict/int_to_vocab.dict')
+        self.int_to_cont = utils.load_pkl(data_path + '/dict/int_to_cont.dict')
         self.n_vocab = len(self.int_to_vocab)
         self.n_context = len(self.int_to_cont)
 
-    def train(self, n_sampled=200, epochs=1, batch_size=10000):
+    def train(self, n_sampled=200, epochs=1, batch_size=10000, print_step=1000):
         self.ident += '-n_sampled={}-epochs={}-batch_size={}'.format(n_sampled, epochs, batch_size)
 
         # computation graph
@@ -73,11 +73,11 @@ class SkipGram:
                     train_loss, _ = sess.run([cost, optimizer])
                     loss += train_loss
 
-                    if iteration % 100 == 0:
+                    if iteration % print_step == 0:
                         end = time.time()
                         print("Iteration: {}".format(iteration),
-                              "Avg. Training loss: {:.4f}".format(loss / 100),
-                              "{:.4f} sec/ 1.000.000 sample".format((end - start)))
+                              "Avg. Training loss: {:.4f}".format(loss / print_step),
+                              "{:.4f} sec/ {} sample".format((end - start), batch_size * print_step))
                         loss = 0
                         start = time.time()
 

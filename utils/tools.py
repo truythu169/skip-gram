@@ -75,19 +75,19 @@ def create_lookup_tables(words):
     return [vocab_to_int, int_to_vocab, cont_to_int, int_to_cont]
 
 
-def save_pkl(dict, filename):
-    """ Save dictionary to file """
+def save_pkl(data, filename):
+    """ Save data to file """
     output = open(filename, 'wb')
-    pickle.dump(dict, output, pickle.HIGHEST_PROTOCOL)
+    pickle.dump(data, output, pickle.HIGHEST_PROTOCOL)
     output.close()
 
 
-def load_dict_from_file(filename):
-    """ Load dictionary to file """
+def load_pkl(filename):
+    """ Load data to pickle """
     input = open(filename, 'rb')
-    dict = pickle.load(input)
+    data = pickle.load(input)
     input.close()
-    return dict
+    return data
 
 
 def label_binarizer(labels, n_class):
@@ -97,3 +97,20 @@ def label_binarizer(labels, n_class):
     labels_b[np.arange(n_records), labels] = 1
 
     return labels_b
+
+
+def sample_negative(neg_size=200, except_sample=None, vocab_size=200):
+    if not except_sample:
+        except_sample = {}
+
+    negative_samples = []
+    while len(negative_samples) != neg_size:
+        # random a sample
+        sample = random.randint(0, vocab_size - 1)
+        if sample not in except_sample:
+            negative_samples.append(sample)
+
+    return negative_samples
+
+
+
