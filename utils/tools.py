@@ -128,12 +128,15 @@ def sample_learning_data(data_path, max_n_file, rand_size):
             data.append([word, context])
             line = f.readline()
 
+    # select rand_size random records
     data = np.array(data)
     n_record = len(data)
-
-    # select rand_size random records
     ids = random.sample(range(n_record), rand_size)
-    return data[ids]
+    data = data[ids]
 
+    words = data[:, 0].tolist()
+    contexts = data[:, 1].tolist()
+
+    return words, contexts
 
 
