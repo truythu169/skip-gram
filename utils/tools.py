@@ -113,4 +113,27 @@ def sample_negative(neg_size=200, except_sample=None, vocab_size=200):
     return negative_samples
 
 
+def sample_learning_data(data_path, max_n_file, rand_size):
+    file_no = random.randint(0, max_n_file)
+    file_name = data_path + ('/x%05d' % file_no)
+    data = []
+
+    # Read data file
+    with open(file_name) as f:
+        line = f.readline()
+        while line:
+            line = line.split(',')
+            word = int(line[0])
+            context = int(line[1])
+            data.append([word, context])
+            line = f.readline()
+
+    data = np.array(data)
+    n_record = len(data)
+
+    # select rand_size random records
+    ids = random.sample(range(n_record), rand_size)
+    return data[ids]
+
+
 

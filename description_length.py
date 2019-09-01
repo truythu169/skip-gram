@@ -1,9 +1,15 @@
-from snml.models.model import Model
 import utils.tools as utils
-import numpy as np
+import time
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    samples = utils.sample_learning_data('../data/processed data/split', 12803, 1000)
+    end_time = time.time()
+    print(samples)
+    print("--- %s seconds ---" % (end_time - start_time))
+
+    '''
     # initialize model
     model = Model()
     model.load_model('snml/models/100dim')
@@ -20,4 +26,4 @@ if __name__ == "__main__":
         # loss, prob = model.train_neg(1637, 369, neg, True)
         loss, prob = model.train(1637, 369)
         print(loss, prob)
-
+    '''

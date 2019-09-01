@@ -7,8 +7,8 @@ import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', default='data/text8', type=str)
-    parser.add_argument('--output', default='data/processed data', type=str)
+    parser.add_argument('--input', default='../data/text8', type=str)
+    parser.add_argument('--output', default='../data/processed data', type=str)
     parser.add_argument('--batch_size', default=10000, type=int)
     parser.add_argument('--window_size', default=15, type=int)
     parser.add_argument('--top_word', default=30000, type=int)

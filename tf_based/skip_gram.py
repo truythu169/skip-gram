@@ -65,6 +65,7 @@ class SkipGram:
         with tf.Session(graph=train_graph) as sess:
             iteration = 1
             loss = 0
+            losses = []
             sess.run(tf.global_variables_initializer())
 
             try:
@@ -78,6 +79,7 @@ class SkipGram:
                         print("Iteration: {}".format(iteration),
                               "Avg. Training loss: {:.4f}".format(loss / print_step),
                               "{:.4f} sec/ {} sample".format((end - start), batch_size * print_step))
+                        losses.append(loss / print_step)
                         loss = 0
                         start = time.time()
 
@@ -89,6 +91,9 @@ class SkipGram:
             self.embedding = embedding.eval()
             self.softmax_w = softmax_w.eval()
             self.softmax_b = softmax_b.eval()
+
+            # export losses
+            utils.save_pkl(losses, self.output_dictionary + '/loss.pkl')
 
     def export_embedding(self):
         # write embedding result to file
