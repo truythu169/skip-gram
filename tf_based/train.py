@@ -5,9 +5,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_path', default='../../data/processed data/', type=str)
     parser.add_argument('--output_path', default='../output/', type=str)
+    parser.add_argument('--n_embedding', default=100, type=int)
+    parser.add_argument('--n_sampled', default=200, type=int)
+    parser.add_argument('--epochs', default=2, type=int)
+    parser.add_argument('--batch_size', default=10000, type=int)
+    parser.add_argument('--print_step', default=1000, type=int)
     args = parser.parse_args()
 
-    skip_gram = SkipGram(args.input_path, args.output_path, n_embedding=5)
-    skip_gram.train(n_sampled=200, epochs=1, batch_size=100, print_step=10)
+    skip_gram = SkipGram(args.input_path, args.output_path, n_embedding=args.n_embedding)
+    skip_gram.train(n_sampled=args.n_sampled, epochs=args.epochs,
+                    batch_size=args.batch_size, print_step=args.print_step)
     skip_gram.export_embedding()
     skip_gram.export_model()

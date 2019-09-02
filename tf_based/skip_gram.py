@@ -73,13 +73,13 @@ class SkipGram:
                 while True:
                     train_loss, _ = sess.run([cost, optimizer])
                     loss += train_loss
+                    losses.append(train_loss)
 
                     if iteration % print_step == 0:
                         end = time.time()
                         print("Iteration: {}".format(iteration),
                               "Avg. Training loss: {:.4f}".format(loss / print_step),
                               "{:.4f} sec/ {} sample".format((end - start), batch_size * print_step))
-                        losses.append(loss / print_step)
                         loss = 0
                         start = time.time()
 

@@ -3,11 +3,13 @@ from collections import Counter
 import random
 import pickle
 from nltk.corpus import stopwords
+from utils.settings import config
 
 
-def preprocess(text, min_word=20, n_top=30000):
+def preprocess(text, min_word=20):
     # Load stop words
     stop_words = stopwords.words('english')
+    n_top = int(config['PREPROCESS']['n_top'])
 
     # Replace punctuation with tokens so we can use them in our model
     # text = text.lower()
@@ -37,10 +39,11 @@ def preprocess(text, min_word=20, n_top=30000):
     return trimmed_words, top_words
 
 
-def get_train_words(int_words, threshold=1e-3):
+def get_train_words(int_words):
     """ implementation of subsampling """
     word_counts = Counter(int_words)
     total_count = len(int_words)
+    threshold = float(config['PREPROCESS']['threshold'])
     freqs = {word: count / total_count for word, count in word_counts.items()}
     p_drop = {word: 1 - np.sqrt(threshold / freqs[word]) for word in word_counts}
     train_words = [word for word in int_words if random.random() < (1 - p_drop[word])]

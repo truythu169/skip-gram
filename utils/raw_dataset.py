@@ -1,10 +1,12 @@
 import utils.tools as utils
 import numpy as np
+import os
+from utils.settings import config
 
 
 class RawDataset:
 
-    def __init__(self, data_file, output_path, n_top=30000):
+    def __init__(self, data_file, output_path):
         # Set output path
         self.output_path = output_path
 
@@ -14,7 +16,8 @@ class RawDataset:
             text = f.read()
 
         # about our data
-        words, self.top_words = utils.preprocess(text, n_top=n_top)
+        print('Parse data...')
+        words, self.top_words = utils.preprocess(text)
 
         # word to int and int to word dictionaries, convert words to list of int
         # 0: vocab_to_int, 1: int_to_vocab, 2: cont_to_int, 3: int_to_cont
@@ -32,7 +35,6 @@ class RawDataset:
         self.cont_to_int = dicts[2]
         self.int_to_cont = dicts[3]
         self.words = train_words
-        self.n_top = n_top
 
         print("Total words: {}".format(len(words)))
         print("Unique words: {}".format(self.n_vocab))
@@ -44,14 +46,19 @@ class RawDataset:
         self.save_top_words()
 
     def save_dicts(self):
+        # make directories
+        dict_path = self.output_path + config['PREPROCESS']['output_dict_path']
+        if not os.path.exists(dict_path):
+            os.makedirs(dict_path)
+
         # Save dictionaries
-        utils.save_pkl(self.vocab_to_int, self.output_path + '/dict/vocab_to_int.dict')
-        utils.save_pkl(self.int_to_vocab, self.output_path + '/dict/int_to_vocab.dict')
-        utils.save_pkl(self.cont_to_int, self.output_path + '/dict/cont_to_int.dict')
-        utils.save_pkl(self.int_to_cont, self.output_path + '/dict/int_to_cont.dict')
+        utils.save_pkl(self.vocab_to_int, dict_path + config['PREPROCESS']['vocab_to_int'])
+        utils.save_pkl(self.int_to_vocab, dict_path + config['PREPROCESS']['int_to_vocab'])
+        utils.save_pkl(self.cont_to_int, dict_path + config['PREPROCESS']['cont_to_int'])
+        utils.save_pkl(self.int_to_cont, dict_path + config['PREPROCESS']['int_to_cont'])
 
     def save_top_words(self):
-        output = open(self.output_path + '/top_{}_words.txt'.format(self.n_top), 'w')
+        output = open(self.output_path + '/top_{}_words.txt'.format(config['PREPROCESS']['n_top']), 'w')
         for word, count in self.top_words:
             output.write(word + '\n')
         output.close()
@@ -63,7 +70,7 @@ class RawDataset:
         else:
             return False
 
-    def get_target(self, words, idx, window_size=5):
+    def get_target(self, words, idx, window_size=15):
         """ Get a list of words in a window around an index. """
         R = np.random.randint(1, window_size + 1)
         start = idx - R if (idx - R) > 0 else 0
@@ -72,7 +79,7 @@ class RawDataset:
 
         return list(target_words)
 
-    def get_batches(self, batch_size, window_size=5):
+    def get_batches(self, batch_size, window_size=15):
         """ Create a generator of word batches as a tuple (inputs, targets) """
         n_data = len(self.words)
 
