@@ -118,7 +118,7 @@ def sample_negative(neg_size=200, except_sample=None, vocab_size=200):
 
 def sample_learning_data(data_path, max_n_file, rand_size):
     file_no = random.randint(0, max_n_file)
-    file_name = data_path + ('/x%05d' % file_no)
+    file_name = data_path + ('x%05d' % file_no)
     data = []
 
     # Read data file

@@ -16,6 +16,7 @@ class Model:
         self.n_vocab = self.embedding.shape[0]
         self.n_embedding = self.embedding.shape[1]
         self.n_context = self.softmax_w.shape[0]
+        self.n_neg_sample = n_neg_sample
 
         # paths
         self.data_path = model_path
@@ -30,7 +31,10 @@ class Model:
         self.epochs = 0
         self._set_training_sample(20)
 
+        # set computation
+        self._set_computation()
 
+    def _set_computation(self):
         # computation graph
         self.train_graph = tf.Graph()
         with self.train_graph.as_default():
@@ -59,7 +63,7 @@ class Model:
                 biases=self.g_softmax_b,
                 labels=self.g_labels,
                 inputs=self.g_embed,
-                num_sampled=n_neg_sample,
+                num_sampled=self.n_neg_sample,
                 num_classes=self.n_context)
 
             # training operations
@@ -83,6 +87,21 @@ class Model:
         # Tensorflow session
         self.sess = tf.Session(graph=self.train_graph)
         self.sess.run(self.g_init)
+
+    def change_model(self, model_path):
+        # Load parameters
+        self.embedding = utils.load_pkl(model_path + config['SNML']['embedding'])
+        self.softmax_w = utils.load_pkl(model_path + config['SNML']['softmax_w'])
+        self.softmax_b = utils.load_pkl(model_path + config['SNML']['softmax_b'])
+        self.n_vocab = self.embedding.shape[0]
+        self.n_embedding = self.embedding.shape[1]
+        self.n_context = self.softmax_w.shape[0]
+
+        # paths
+        self.data_path = model_path
+
+        # set computation
+        self._set_computation()
 
     def snml_length(self, word, context, epochs=10):
         print('Start training for {} contexts ...'.format(self.n_context))
@@ -112,9 +131,7 @@ class Model:
         return snml_length
 
     def train(self, word, context, epochs=10, update_weigh=True):
-        print('Start training...')
         prob = self._train_sample(word, context, epochs, update_weigh)
-        print('Finished!')
         return prob
 
     def _train_sample(self, word, context, epochs=10, update_weigh=False):
@@ -131,6 +148,7 @@ class Model:
         # estimate conditional probability of word given contexts
         feed = {self.g_inputs: [word], self.g_labels: [[context]]}
         p = self.sess.run(self.g_prob, feed_dict=feed)
+        # print(train_loss)
 
         # update weights
         if not update_weigh:
