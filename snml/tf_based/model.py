@@ -8,7 +8,8 @@ from utils.settings import config
 class Model:
 
     # Constructor
-    def __init__(self, model_path, sample_path, output_path, n_train_sample=1000, n_neg_sample=200):
+    def __init__(self, model_path, sample_path, output_path, context_distribution_file, n_train_sample=1000,
+                 n_neg_sample=200, n_context_sample=1000):
         # Load parameters
         self.embedding = utils.load_pkl(model_path + config['SNML']['embedding'])
         self.softmax_w = utils.load_pkl(model_path + config['SNML']['softmax_w'])
@@ -30,6 +31,8 @@ class Model:
         self.contexts = []
         self.epochs = 0
         self._set_training_sample(20)
+        self.sample_contexts, self.sample_contexts_prob = utils.sample_contexts(context_distribution_file, n_context_sample)
+        self.n_context_sample = n_context_sample
 
         # set computation
         self._set_computation()
@@ -110,21 +113,35 @@ class Model:
 
         # Update all other context
         start = time.time()
-        for c in range(self.n_context):
-            if c != context:
-                iteration += 1
-                prob = self._train_sample(word, c, epochs, update_weigh=False)
-                prob_sum += prob
+        for i in range(self.n_context_sample):
+            c = self.sample_contexts[i]
+            c_prob = self.sample_contexts_prob[i]
 
-                if iteration % 1000 == 0:
-                    end = time.time()
-                    print("Iteration: {}, ".format(iteration),
-                          "{:.4f} sec".format(end - start))
-                    start = time.time()
+            iteration += 1
+            prob = self._train_sample(word, c, epochs, update_weigh=False)
+            prob_sum += prob / c_prob
+
+            if iteration % 100 == 0:
+                end = time.time()
+                print("Iteration: {}, ".format(iteration),
+                      "{:.4f} sec".format(end - start))
+                start = time.time()
+        prob_sum = prob_sum / self.n_context_sample
+
+        # for c in range(self.n_context):
+        #     if c != context:
+        #         iteration += 1
+        #         prob = self._train_sample(word, c, epochs, update_weigh=False)
+        #         prob_sum += prob
+        #
+        #         if iteration % 1000 == 0:
+        #             end = time.time()
+        #             print("Iteration: {}, ".format(iteration),
+        #                   "{:.4f} sec".format(end - start))
+        #             start = time.time()
 
         # Update true context and save weights
         prob = self._train_sample(word, context, epochs, update_weigh=True)
-        prob_sum += prob
 
         snml_length = - np.log(prob / prob_sum)
         print('Finished!')

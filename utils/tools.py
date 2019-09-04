@@ -116,6 +116,20 @@ def sample_negative(neg_size=200, except_sample=None, vocab_size=200):
     return negative_samples
 
 
+def sample_contexts(context_distribution_file, sample_size=1000):
+    context_distribution = load_pkl(context_distribution_file)
+    draw = np.random.multinomial(sample_size, context_distribution)
+    sample_ids = np.where(draw > 0)[0]
+
+    samples = []
+    samples_prob = []
+    for context_id in sample_ids:
+        samples.extend([context_id] * draw[context_id])
+        samples_prob.extend([context_distribution[context_id]] * draw[context_id])
+
+    return samples, samples_prob
+
+
 def sample_learning_data(data_path, max_n_file, rand_size):
     file_no = random.randint(0, max_n_file)
     file_name = data_path + ('x%05d' % file_no)
