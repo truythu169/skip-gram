@@ -113,6 +113,32 @@ class Model:
 
         # Update all other context
         start = time.time()
+        for c in range(self.n_context):
+            if c != context:
+                iteration += 1
+                prob = self._train_sample(word, c, epochs, update_weigh=False)
+                prob_sum += prob
+
+                if iteration % 1000 == 0:
+                    end = time.time()
+                    print("Iteration: {}, ".format(iteration),
+                          "{:.4f} sec".format(end - start))
+                    start = time.time()
+
+        # Update true context and save weights
+        prob = self._train_sample(word, context, epochs, update_weigh=True)
+        prob_sum += prob
+        snml_length = - np.log(prob / prob_sum)
+        print('Finished!')
+        return snml_length
+
+    def snml_length_sampling(self, word, context, epochs=10):
+        print('Start training for {} contexts ...'.format(self.n_context))
+        prob_sum = 0
+        iteration = 0
+
+        # Update all other context
+        start = time.time()
         for i in range(self.n_context_sample):
             c = self.sample_contexts[i]
             c_prob = self.sample_contexts_prob[i]
@@ -127,18 +153,6 @@ class Model:
                       "{:.4f} sec".format(end - start))
                 start = time.time()
         prob_sum = prob_sum / self.n_context_sample
-
-        # for c in range(self.n_context):
-        #     if c != context:
-        #         iteration += 1
-        #         prob = self._train_sample(word, c, epochs, update_weigh=False)
-        #         prob_sum += prob
-        #
-        #         if iteration % 1000 == 0:
-        #             end = time.time()
-        #             print("Iteration: {}, ".format(iteration),
-        #                   "{:.4f} sec".format(end - start))
-        #             start = time.time()
 
         # Update true context and save weights
         prob = self._train_sample(word, context, epochs, update_weigh=True)

@@ -5,10 +5,10 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', default='models/50dim/', type=str)
+    parser.add_argument('--model_path', default='models/150dim/', type=str)
     parser.add_argument('--sample_path', default='../../data/processed data/split/', type=str)
     parser.add_argument('--snml_train_file', default='../../data/processed data/scope.csv', type=str)
-    parser.add_argument('--output_path', default='models/50dim/output/', type=str)
+    parser.add_argument('--output_path', default='models/150dim/output/', type=str)
     parser.add_argument('--context_distribution_file', default='context_distribution.pkl', type=str)
     args = parser.parse_args()
 
