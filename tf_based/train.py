@@ -5,7 +5,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_path', default='../data/processed data/', type=str)
     parser.add_argument('--output_path', default='../output/', type=str)
-    parser.add_argument('--n_embedding', default=300, type=int)
+    parser.add_argument('--n_embedding', default=275, type=int)
     parser.add_argument('--n_sampled', default=200, type=int)
     parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--batch_size', default=10000, type=int)
