@@ -72,6 +72,7 @@ class Model:
             # training operations
             self.g_cost = tf.reduce_mean(self.g_loss)
             self.g_optimizer = tf.train.AdamOptimizer().minimize(self.g_cost)
+            self.g_optimizer_one = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.g_cost)
 
             # conditional probability of word given contexts
             self.g_mul = tf.matmul(self.g_embed, tf.transpose(self.g_softmax_w))
@@ -161,8 +162,11 @@ class Model:
         print('Finished!')
         return snml_length
 
-    def train(self, word, context, epochs=10, update_weigh=True):
-        prob = self._train_sample(word, context, epochs, update_weigh)
+    def train(self, word, context, epochs=10, update_weigh=True, train_one=False):
+        if train_one:
+            prob = self._train_one_sample(word, context, epochs, update_weigh)
+        else:
+            prob = self._train_sample(word, context, epochs, update_weigh)
         return prob
 
     def _train_sample(self, word, context, epochs=10, update_weigh=False):
@@ -175,11 +179,34 @@ class Model:
                     self.g_labels: np.array(contexts)[:, None]}
 
             train_loss, _ = self.sess.run([self.g_cost, self.g_optimizer], feed_dict=feed)
+            # print(train_loss)
 
         # estimate conditional probability of word given contexts
         feed = {self.g_inputs: [word], self.g_labels: [[context]]}
         p = self.sess.run(self.g_prob, feed_dict=feed)
-        # print(train_loss)
+
+        # update weights
+        if not update_weigh:
+            self.sess.run(self.g_reset_embedding)
+            self.sess.run(self.g_reset_softmax_w)
+            self.sess.run(self.g_reset_softmax_b)
+
+        return p[0]
+
+    def _train_one_sample(self, word, context, epochs=20, update_weigh=False):
+        self._set_training_sample(epochs)
+
+        # train weights
+        for e in range(epochs):
+            feed = {self.g_inputs: [word],
+                    self.g_labels: [[context]]}
+
+            train_loss, _ = self.sess.run([self.g_cost, self.g_optimizer], feed_dict=feed)
+            # print(train_loss)
+
+        # estimate conditional probability of word given contexts
+        feed = {self.g_inputs: [word], self.g_labels: [[context]]}
+        p = self.sess.run(self.g_prob, feed_dict=feed)
 
         # update weights
         if not update_weigh:
