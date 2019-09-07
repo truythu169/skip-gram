@@ -3,6 +3,27 @@ import time
 import numpy as np
 import argparse
 
+
+def test_train(model, word, context):
+    p_sum = []
+    start = time.time()
+    for i in range(100):
+        p = model.train(word, context, epochs=20, update_weigh=False)
+        p_sum.append(p)
+    end = time.time()
+    print("100 loop in {:.4f} sec".format(end - start))
+    print('Mean: {} \nMin: {} \nMax: {} \nstd: {}'.format(np.mean(p_sum), min(p_sum), max(p_sum), np.std(p_sum)))
+
+    p_sum = []
+    start = time.time()
+    for i in range(100):
+        p = model.train(word, context, epochs=20, update_weigh=False, train_one=True)
+        p_sum.append(p)
+    end = time.time()
+    print("100 loop in {:.4f} sec".format(end - start))
+    print('Mean: {} \nMin: {} \nMax: {} \nstd: {}'.format(np.mean(p_sum), min(p_sum), max(p_sum), np.std(p_sum)))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', default='models/150dim/', type=str)
@@ -14,48 +35,40 @@ if __name__ == "__main__":
 
     # read snml train file
     data = np.genfromtxt(args.snml_train_file, delimiter=',').astype(int)
-    print(data)
 
     model = Model(args.model_path, args.sample_path, args.output_path, args.context_distribution_file,
                   n_train_sample=10000, n_context_sample=400)
-    snml_length = model.snml_length(data[0][0], data[0][1], epochs=10)
-    print(snml_length)
-    snml_length = model.snml_length(data[0][0], data[0][1], epochs=10)
-    print(snml_length)
-    snml_length = model.snml_length(data[0][0], data[0][1], epochs=10)
-    print(snml_length)
+    # snml_length = model.snml_length(data[10][0], data[10][1], epochs=10)
+    # print(snml_length)
+    # snml_length = model.snml_length(data[10][0], data[10][1], epochs=10)
+    # print(snml_length)
+    # snml_length = model.snml_length(data[10][0], data[10][1], epochs=10)
+    # print(snml_length)
 
     # 50 dim
-    # p_sum = 0
-    # for i in range(100):
-    #     p = model.train(data[0][0], data[0][1], epochs=20, update_weigh=False)
-    #     p_sum += p
-    #
-    # print('Average 50 dim:', p_sum / 100)
-    #
-    # # 100 dim
+    print('50 dim: ')
+    test_train(model, 8229, 9023)
+
+    # 100 dim
+    # print('100 dim: ')
     # model.change_model('models/100dim/')
-    # p_sum = 0
-    # for i in range(100):
-    #     p = model.train(data[0][0], data[0][1], epochs=20, update_weigh=False)
-    #     p_sum += p
-    #
-    # print('Average 100 dim:', p_sum / 100)
+    # p = model.train(data[10][0], data[10][1], epochs=10, update_weigh=False, train_one=True)
+    # print(p)
+    # p = model.train(data[10][0], data[10][1], epochs=10, update_weigh=False, train_one=False)
+    # print(p)
     #
     # # 150 dim
+    # print('150 dim: ')
     # model.change_model('models/150dim/')
-    # p_sum = 0
-    # for i in range(100):
-    #     p = model.train(data[0][0], data[0][1], epochs=20, update_weigh=False)
-    #     p_sum += p
-    #
-    # print('Average 150 dim:', p_sum / 100)
+    # p = model.train(data[10][0], data[10][1], epochs=10, update_weigh=False, train_one=True)
+    # print(p)
+    # p = model.train(data[10][0], data[10][1], epochs=10, update_weigh=False, train_one=False)
+    # print(p)
     #
     # # 200 dim
+    # print('200 dim: ')
     # model.change_model('models/200dim/')
-    # p_sum = 0
-    # for i in range(100):
-    #     p = model.train(data[0][0], data[0][1], epochs=20, update_weigh=False)
-    #     p_sum += p
-    #
-    # print('Average 200 dim:', p_sum / 100)
+    # p = model.train(data[10][0], data[10][1], epochs=10, update_weigh=False, train_one=True)
+    # print(p)
+    # p = model.train(data[10][0], data[10][1], epochs=10, update_weigh=False, train_one=False)
+    # print(p)
