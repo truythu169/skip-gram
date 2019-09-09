@@ -91,12 +91,10 @@ class Model:
         return snml_length
 
     def snml_length_sampling(self, word, context, epochs=20):
-        print('Start training for {} contexts ...'.format(self.n_context_sample))
         prob_sum = 0
         iteration = 0
 
         # Update all other context
-        start = time.time()
         for i in range(self.n_context_sample):
             c = self.sample_contexts[i]
             c_prob = self.sample_contexts_prob[i]
@@ -105,19 +103,12 @@ class Model:
             prob, losses = self.train_neg_adam(word, c, epochs)
             self.reset()
             prob_sum += prob / c_prob
-
-            if iteration % 1000 == 0:
-                end = time.time()
-                print("Iteration: {}, ".format(iteration),
-                      "{:.4f} sec".format(end - start))
-                start = time.time()
         prob_sum = prob_sum / self.n_context_sample
 
         # Update true context and save weights
         prob, losses = self.train_neg_adam(word, context, epochs)
         snml_length = - np.log(prob / prob_sum)
-        print('Finished!')
-        return snml_length
+        return snml_length, prob_sum
 
     def train_adam(self, w, c, epochs=20):
         # initialize things
