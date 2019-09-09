@@ -2,11 +2,13 @@ import numpy as np
 import utils.tools as utils
 import utils.math as math
 import math as ma
+import time
 
 
 class Model:
 
-    def __init__(self, data_path, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
+    def __init__(self, data_path, context_distribution_file, n_context_sample,
+                 learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
         self.E = utils.load_pkl(data_path + 'embedding.pkl')
         self.C = utils.load_pkl(data_path + 'softmax_w.pkl')
         self.b = utils.load_pkl(data_path + 'softmax_b.pkl')
@@ -30,6 +32,11 @@ class Model:
         self.C_default = self.C.copy()
         self.b_default = self.b.copy()
 
+        # sampling snml
+        self.sample_contexts, self.sample_contexts_prob = utils.sample_contexts(context_distribution_file,
+                                                                                n_context_sample)
+        self.n_context_sample = n_context_sample
+
     def reset(self):
         self.E = self.E_default.copy()
         self.C = self.C_default.copy()
@@ -39,6 +46,78 @@ class Model:
         self.t = self.t_default
         self.beta1_t = self.beta1 ** self.t
         self.beta2_t = self.beta2 ** self.t
+
+    def update(self):
+        self.E_default = self.E.copy()
+        self.C_default = self.C.copy()
+        self.b_default = self.b.copy()
+
+    def get_prob(self, word, context):
+        # forward propagation
+        e = self.E[word]  # K dimensions vector
+        z = np.dot(e, self.C.T) + self.b
+        exp_z = np.exp(z)
+        sum_exp_z = np.sum(exp_z)
+        y = exp_z / sum_exp_z
+
+        return y[context]
+
+    def snml_length(self, word, context, epochs=20):
+        print('Start training for {} contexts ...'.format(self.V_dash))
+        prob_sum = 0
+        iteration = 0
+
+        # Update all other context
+        start = time.time()
+        for c in range(self.V_dash):
+            if c != context:
+                iteration += 1
+                prob, losses = self.train_neg_adam(word, c, epochs)
+                self.reset()
+
+                prob_sum += prob
+
+                if iteration % 1000 == 0:
+                    end = time.time()
+                    print("Iteration: {}, ".format(iteration),
+                          "{:.4f} sec".format(end - start))
+                    start = time.time()
+
+        # Update true context and save weights
+        prob, losses = self.train_neg_adam(word, context, epochs)
+        prob_sum += prob
+        snml_length = - np.log(prob / prob_sum)
+        print('Finished!')
+        return snml_length
+
+    def snml_length_sampling(self, word, context, epochs=20):
+        print('Start training for {} contexts ...'.format(self.n_context_sample))
+        prob_sum = 0
+        iteration = 0
+
+        # Update all other context
+        start = time.time()
+        for i in range(self.n_context_sample):
+            c = self.sample_contexts[i]
+            c_prob = self.sample_contexts_prob[i]
+
+            iteration += 1
+            prob, losses = self.train_neg_adam(word, c, epochs)
+            self.reset()
+            prob_sum += prob / c_prob
+
+            if iteration % 1000 == 0:
+                end = time.time()
+                print("Iteration: {}, ".format(iteration),
+                      "{:.4f} sec".format(end - start))
+                start = time.time()
+        prob_sum = prob_sum / self.n_context_sample
+
+        # Update true context and save weights
+        prob, losses = self.train_neg_adam(word, context, epochs)
+        snml_length = - np.log(prob / prob_sum)
+        print('Finished!')
+        return snml_length
 
     def train_adam(self, w, c, epochs=20):
         # initialize things
@@ -71,6 +150,7 @@ class Model:
         # back propagation
         dz = exp_z / sum_exp_z
         dz[c] -= 1
+        dz = dz / 10000
         dC = np.dot(dz.reshape(-1, 1), e.reshape(1, -1))
         db = dz
         dE = np.dot(dz.reshape(1, -1), self.C).reshape(-1)
