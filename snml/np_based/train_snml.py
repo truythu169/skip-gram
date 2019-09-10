@@ -27,7 +27,7 @@ if __name__ == "__main__":
         c = datum[1]
 
         iteration += 1
-        if iteration % 10 == 0:
+        if iteration % 5 == 0:
             end = time.time()
             print("Iteration: {}, ".format(iteration),
                   "{:.4f} sec".format(end - start))

@@ -246,7 +246,7 @@ class Model:
         # probability
         prob = None
         if get_prob:
-            z = np.dot(e, self.C.T)
+            z = np.dot(e, self.C.T) + self.b
             y = math.softmax(z)
             prob = y[c]
 
