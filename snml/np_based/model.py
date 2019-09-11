@@ -62,6 +62,19 @@ class Model:
 
         return y[context]
 
+    def get_neg_prob(self, word, context, neg_size=200):
+        neg = utils.sample_negative(neg_size, {context}, vocab_size=self.V_dash)
+
+        # forward propagation
+        e = self.E[word]  # K dimensions vector
+        labels = [context] + neg
+        z = np.dot(e, self.C[labels].T) + self.b[labels]
+        exp_z = np.exp(z)
+        sum_exp_z = np.sum(exp_z)
+        prob = exp_z[0] / sum_exp_z
+
+        return prob
+
     def snml_length(self, word, context, epochs=20):
         print('Start training for {} contexts ...'.format(self.V_dash))
         prob_sum = 0
@@ -91,10 +104,12 @@ class Model:
         return snml_length
 
     def snml_length_sampling(self, word, context, epochs=20):
+        print('Start training for {} contexts ...'.format(self.n_context_sample))
         prob_sum = 0
         iteration = 0
 
         # Update all other context
+        start = time.time()
         for i in range(self.n_context_sample):
             c = self.sample_contexts[i]
             c_prob = self.sample_contexts_prob[i]
@@ -103,12 +118,19 @@ class Model:
             prob, losses = self.train_neg_adam(word, c, epochs)
             self.reset()
             prob_sum += prob / c_prob
+
+            if iteration % 1000 == 0:
+                end = time.time()
+                print("Iteration: {}, ".format(iteration),
+                      "{:.4f} sec".format(end - start))
+                start = time.time()
         prob_sum = prob_sum / self.n_context_sample
 
         # Update true context and save weights
         prob, losses = self.train_neg_adam(word, context, epochs)
         snml_length = - np.log(prob / prob_sum)
-        return snml_length, prob_sum
+        print('Finished!')
+        return snml_length
 
     def train_adam(self, w, c, epochs=20):
         # initialize things
@@ -246,7 +268,7 @@ class Model:
         # probability
         prob = None
         if get_prob:
-            z = np.dot(e, self.C.T) + self.b
+            z = np.dot(e, self.C.T)
             y = math.softmax(z)
             prob = y[c]
 

@@ -17,9 +17,9 @@ if __name__ == "__main__":
     # print("100 loop in {:.4f} sec".format(end - start))
     # print('Mean: {} \nMin: {} \nMax: {} \nstd: {}'.format(np.mean(p_sum), min(p_sum), max(p_sum), np.std(p_sum)))
 
-    model1 = Model('../../../output/convergence_test/20epochs/50dim/1/', '../context_distribution.pkl', n_context_sample=600)
-    model2 = Model('../../../output/convergence_test/20epochs/50dim/2/', '../context_distribution.pkl', n_context_sample=600)
-    model3 = Model('../../../output/convergence_test/20epochs/50dim/3/', '../context_distribution.pkl', n_context_sample=600)
+    model1 = Model('../../../output/convergence_test/20epochs/50dim/1/')
+    model2 = Model('../../../output/convergence_test/20epochs/50dim/2/')
+    model3 = Model('../../../output/convergence_test/20epochs/50dim/3/')
 
     words = []
     contexts = []

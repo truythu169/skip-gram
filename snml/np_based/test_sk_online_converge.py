@@ -6,7 +6,7 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    model = Model('../models/150dim/', '../context_distribution.pkl', n_context_sample=600)
+    model = Model('../models/150dim/')
     p_sum = []
     start = time.time()
     print(model.get_prob(8229, 9023))
