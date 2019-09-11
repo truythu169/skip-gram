@@ -32,6 +32,22 @@ class Model:
         self.C_default = self.C.copy()
         self.b_default = self.b.copy()
 
+        # initialize things
+        self.mE_t = np.zeros((self.V, self.K))
+        self.mC_t = np.zeros((self.V_dash, self.K))
+        self.mb_t = np.zeros(self.V_dash)
+        self.vE_t = np.zeros((self.V, self.K))
+        self.vC_t = np.zeros((self.V_dash, self.K))
+        self.vb_t = np.zeros(self.V_dash)
+
+        # initialize things
+        self.mE_t_default = np.zeros((self.V, self.K))
+        self.mC_t_default = np.zeros((self.V_dash, self.K))
+        self.mb_t_default = np.zeros(self.V_dash)
+        self.vE_t_default = np.zeros((self.V, self.K))
+        self.vC_t_default = np.zeros((self.V_dash, self.K))
+        self.vb_t_default = np.zeros(self.V_dash)
+
         # sampling snml
         self.sample_contexts, self.sample_contexts_prob = utils.sample_contexts(context_distribution_file,
                                                                                 n_context_sample)
@@ -47,10 +63,27 @@ class Model:
         self.beta1_t = self.beta1 ** self.t
         self.beta2_t = self.beta2 ** self.t
 
+        self.mE_t = self.mE_t_default.copy()
+        self.mC_t = self.mC_t_default.copy()
+        self.mb_t = self.mb_t_default.copy()
+        self.vE_t = self.vE_t_default.copy()
+        self.vC_t = self.vC_t_default.copy()
+        self.vb_t = self.vb_t_default.copy()
+
     def update(self):
         self.E_default = self.E.copy()
         self.C_default = self.C.copy()
         self.b_default = self.b.copy()
+
+        # adam optimizer initialize
+        self.t_default = self.t
+
+        self.mE_t_default = self.mE_t.copy()
+        self.mC_t_default = self.mC_t.copy()
+        self.mb_t_default = self.mb_t.copy()
+        self.vE_t_default = self.vE_t.copy()
+        self.vC_t_default = self.vC_t.copy()
+        self.vb_t_default = self.vb_t.copy()
 
     def get_prob(self, word, context):
         # forward propagation
@@ -76,12 +109,10 @@ class Model:
         return prob
 
     def snml_length(self, word, context, epochs=20):
-        print('Start training for {} contexts ...'.format(self.V_dash))
         prob_sum = 0
         iteration = 0
 
         # Update all other context
-        start = time.time()
         for c in range(self.V_dash):
             if c != context:
                 iteration += 1
@@ -90,26 +121,18 @@ class Model:
 
                 prob_sum += prob
 
-                if iteration % 1000 == 0:
-                    end = time.time()
-                    print("Iteration: {}, ".format(iteration),
-                          "{:.4f} sec".format(end - start))
-                    start = time.time()
-
         # Update true context and save weights
         prob, losses = self.train_neg_adam(word, context, epochs)
+        self.update()
         prob_sum += prob
         snml_length = - np.log(prob / prob_sum)
-        print('Finished!')
         return snml_length
 
     def snml_length_sampling(self, word, context, epochs=20):
-        print('Start training for {} contexts ...'.format(self.n_context_sample))
         prob_sum = 0
         iteration = 0
 
         # Update all other context
-        start = time.time()
         for i in range(self.n_context_sample):
             c = self.sample_contexts[i]
             c_prob = self.sample_contexts_prob[i]
@@ -118,29 +141,16 @@ class Model:
             prob, losses = self.train_neg_adam(word, c, epochs)
             self.reset()
             prob_sum += prob / c_prob
-
-            if iteration % 1000 == 0:
-                end = time.time()
-                print("Iteration: {}, ".format(iteration),
-                      "{:.4f} sec".format(end - start))
-                start = time.time()
         prob_sum = prob_sum / self.n_context_sample
 
         # Update true context and save weights
         prob, losses = self.train_neg_adam(word, context, epochs)
+        self.update()
         snml_length = - np.log(prob / prob_sum)
-        print('Finished!')
-        return snml_length
+
+        return snml_length, prob_sum
 
     def train_adam(self, w, c, epochs=20):
-        # initialize things
-        self.mE_t = np.zeros(self.K)
-        self.mC_t = np.zeros((self.V_dash, self.K))
-        self.mb_t = np.zeros(self.V_dash)
-        self.vE_t = np.zeros(self.K)
-        self.vC_t = np.zeros((self.V_dash, self.K))
-        self.vb_t = np.zeros(self.V_dash)
-
         prob = 0
         losses = []
         for i in range(epochs):
@@ -175,10 +185,10 @@ class Model:
 
         # adam things
         lr = self.lr * ma.sqrt(1 - self.beta2_t) / (1 - self.beta1_t)
-        mE = self.beta1 * self.mE_t + (1 - self.beta1) * dE
+        mE = self.beta1 * self.mE_t[w] + (1 - self.beta1) * dE
         mC = self.beta1 * self.mC_t + (1 - self.beta1) * dC
         mb = self.beta1 * self.mb_t + (1 - self.beta1) * db
-        vE = self.beta2 * self.vE_t + (1 - self.beta2) * dE * dE
+        vE = self.beta2 * self.vE_t[w] + (1 - self.beta2) * dE * dE
         vC = self.beta2 * self.vC_t + (1 - self.beta2) * dC * dC
         vb = self.beta2 * self.vb_t + (1 - self.beta2) * db * db
 
@@ -188,10 +198,10 @@ class Model:
         self.b -= lr * mb / (np.sqrt(vb + self.epsilon))
 
         # save status
-        self.mE_t = mE
+        self.mE_t[w] = mE
         self.mC_t = mC
         self.mb_t = mb
-        self.vE_t = vE
+        self.vE_t[w] = vE
         self.vC_t = vC
         self.vb_t = vb
 
@@ -199,27 +209,16 @@ class Model:
         return loss, y[c]
 
     def train_neg_adam(self, w, c, epochs=20, neg_size=200):
-        # initialize things
-        self.mE_t = np.zeros(self.K)
-        self.mC_t = np.zeros((neg_size + 1, self.K))
-        self.mb_t = np.zeros(neg_size + 1)
-        self.vE_t = np.zeros(self.K)
-        self.vC_t = np.zeros((neg_size + 1, self.K))
-        self.vb_t = np.zeros(neg_size + 1)
-
+        prob = 0
         losses = []
-        for i in range(epochs - 1):
+        for i in range(epochs):
             neg = utils.sample_negative(neg_size, {c}, vocab_size=self.V_dash)
-            loss, prob = self._train_neg_adam(w, c, neg)
+            prob, loss = self._train_neg_adam(w, c, neg)
             losses.append(loss)
-
-        neg = utils.sample_negative(neg_size, {c}, vocab_size=self.V_dash)
-        loss, prob = self._train_neg_adam(w, c, neg, get_prob=True)
-        losses.append(loss)
 
         return prob, losses
 
-    def _train_neg_adam(self, w, c, neg, get_prob=False):
+    def _train_neg_adam(self, w, c, neg):
         # forward propagation
         e = self.E[w] # K dimensions vector
         labels = [c] + neg
@@ -242,12 +241,12 @@ class Model:
 
         # adam things
         lr = self.lr * ma.sqrt(1 - self.beta2_t) / (1 - self.beta1_t)
-        mE = self.beta1 * self.mE_t + (1 - self.beta1) * dE
-        mC = self.beta1 * self.mC_t + (1 - self.beta1) * dC
-        mb = self.beta1 * self.mb_t + (1 - self.beta1) * db
-        vE = self.beta2 * self.vE_t + (1 - self.beta2) * dE * dE
-        vC = self.beta2 * self.vC_t + (1 - self.beta2) * dC * dC
-        vb = self.beta2 * self.vb_t + (1 - self.beta2) * db * db
+        mE = self.beta1 * self.mE_t[w] + (1 - self.beta1) * dE
+        mC = self.beta1 * self.mC_t[labels] + (1 - self.beta1) * dC
+        mb = self.beta1 * self.mb_t[labels] + (1 - self.beta1) * db
+        vE = self.beta2 * self.vE_t[w] + (1 - self.beta2) * dE * dE
+        vC = self.beta2 * self.vC_t[labels] + (1 - self.beta2) * dC * dC
+        vb = self.beta2 * self.vb_t[labels] + (1 - self.beta2) * db * db
 
         # update weights
         self.E[w] -= lr * mE / (np.sqrt(vE + self.epsilon))
@@ -255,22 +254,16 @@ class Model:
         self.b[labels] -= lr * mb / (np.sqrt(vb + self.epsilon))
 
         # save status
-        self.mE_t = mE
-        self.mC_t = mC
-        self.mb_t = mb
-        self.vE_t = vE
-        self.vC_t = vC
-        self.vb_t = vb
+        self.mE_t[w] = mE
+        self.mC_t[labels] = mC
+        self.mb_t[labels] = mb
+        self.vE_t[w] = vE
+        self.vC_t[labels] = vC
+        self.vb_t[labels] = vb
 
         # compute loss
-        loss = - np.log(exp_z[0] / sum_exp_z)
+        prob = exp_z[0] / sum_exp_z
+        loss = - np.log(prob)
 
-        # probability
-        prob = None
-        if get_prob:
-            z = np.dot(e, self.C.T)
-            y = math.softmax(z)
-            prob = y[c]
-
-        return loss, prob
+        return prob, loss
 

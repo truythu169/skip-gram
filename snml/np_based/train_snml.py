@@ -14,45 +14,45 @@ if __name__ == "__main__":
     data = np.genfromtxt(args.snml_train_file, delimiter=',').astype(int)
 
     # 50 dim
-    model = Model('../models/50dim/', args.context_distribution_file, n_context_sample=6000)
+    model = Model('../models/50dim/', args.context_distribution_file, n_context_sample=600)
     total_length = 0
     for i in range(5):
         w = data[i][0]
         c = data[i][1]
 
-        snml_length = model.snml_length_sampling(w, c)
+        snml_length, prob_sum = model.snml_length_sampling(w, c)
         total_length += snml_length
     print(total_length)
 
     # 100 dim
-    model = Model('../models/100dim/', args.context_distribution_file, n_context_sample=6000)
+    model = Model('../models/100dim/', args.context_distribution_file, n_context_sample=600)
     total_length = 0
     for i in range(5):
         w = data[i][0]
         c = data[i][1]
 
-        snml_length = model.snml_length_sampling(w, c)
+        snml_length, prob_sum = model.snml_length_sampling(w, c)
         total_length += snml_length
     print(total_length)
 
     # 150 dim
-    model = Model('../models/150dim/', args.context_distribution_file, n_context_sample=6000)
+    model = Model('../models/150dim/', args.context_distribution_file, n_context_sample=600)
     total_length = 0
     for i in range(5):
         w = data[i][0]
         c = data[i][1]
 
-        snml_length = model.snml_length_sampling(w, c)
+        snml_length, prob_sum = model.snml_length_sampling(w, c)
         total_length += snml_length
     print(total_length)
 
     # 200 dim
-    model = Model('../models/200dim/', args.context_distribution_file, n_context_sample=6000)
+    model = Model('../models/200dim/', args.context_distribution_file, n_context_sample=600)
     total_length = 0
     for i in range(5):
         w = data[i][0]
         c = data[i][1]
 
-        snml_length = model.snml_length_sampling(w, c)
+        snml_length, prob_sum = model.snml_length_sampling(w, c)
         total_length += snml_length
     print(total_length)
