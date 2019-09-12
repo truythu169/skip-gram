@@ -27,11 +27,6 @@ class Model:
         self.beta1_t = beta1 ** self.t
         self.beta2_t = beta2 ** self.t
 
-        # default
-        self.E_default = self.E.copy()
-        self.C_default = self.C.copy()
-        self.b_default = self.b.copy()
-
         # initialize things
         self.mE_t = np.zeros((self.V, self.K))
         self.mC_t = np.zeros((self.V_dash, self.K))
@@ -40,50 +35,10 @@ class Model:
         self.vC_t = np.zeros((self.V_dash, self.K))
         self.vb_t = np.zeros(self.V_dash)
 
-        # initialize things
-        self.mE_t_default = np.zeros((self.V, self.K))
-        self.mC_t_default = np.zeros((self.V_dash, self.K))
-        self.mb_t_default = np.zeros(self.V_dash)
-        self.vE_t_default = np.zeros((self.V, self.K))
-        self.vC_t_default = np.zeros((self.V_dash, self.K))
-        self.vb_t_default = np.zeros(self.V_dash)
-
         # sampling snml
         self.sample_contexts, self.sample_contexts_prob = utils.sample_contexts(context_distribution_file,
                                                                                 n_context_sample)
         self.n_context_sample = n_context_sample
-
-    def reset(self):
-        self.E = self.E_default.copy()
-        self.C = self.C_default.copy()
-        self.b = self.b_default.copy()
-
-        # adam optimizer initialize
-        self.t = self.t_default
-        self.beta1_t = self.beta1 ** self.t
-        self.beta2_t = self.beta2 ** self.t
-
-        self.mE_t = self.mE_t_default.copy()
-        self.mC_t = self.mC_t_default.copy()
-        self.mb_t = self.mb_t_default.copy()
-        self.vE_t = self.vE_t_default.copy()
-        self.vC_t = self.vC_t_default.copy()
-        self.vb_t = self.vb_t_default.copy()
-
-    def update(self):
-        self.E_default = self.E.copy()
-        self.C_default = self.C.copy()
-        self.b_default = self.b.copy()
-
-        # adam optimizer initialize
-        self.t_default = self.t
-
-        self.mE_t_default = self.mE_t.copy()
-        self.mC_t_default = self.mC_t.copy()
-        self.mb_t_default = self.mb_t.copy()
-        self.vE_t_default = self.vE_t.copy()
-        self.vC_t_default = self.vC_t.copy()
-        self.vb_t_default = self.vb_t.copy()
 
     def get_prob(self, word, context):
         # forward propagation
@@ -117,13 +72,11 @@ class Model:
             if c != context:
                 iteration += 1
                 prob, losses = self.train_neg_adam(word, c, epochs)
-                self.reset()
 
                 prob_sum += prob
 
         # Update true context and save weights
-        prob, losses = self.train_neg_adam(word, context, epochs)
-        self.update()
+        prob, losses = self.train_neg_adam(word, context, epochs, update_weights=True)
         prob_sum += prob
         snml_length = - np.log(prob / prob_sum)
         return snml_length
@@ -139,30 +92,69 @@ class Model:
 
             iteration += 1
             prob, losses = self.train_neg_adam(word, c, epochs)
-            self.reset()
             prob_sum += prob / c_prob
         prob_sum = prob_sum / self.n_context_sample
 
         # Update true context and save weights
-        prob, losses = self.train_neg_adam(word, context, epochs)
-        self.update()
+        prob, losses = self.train_neg_adam(word, context, epochs, update_weights=True)
         snml_length = - np.log(prob / prob_sum)
 
         return snml_length, prob_sum
 
-    def train_adam(self, w, c, epochs=20):
+    def _copy_weights(self, w):
+        # copy weights to train
+        self.e_train = self.E[w].copy()
+        self.C_train = self.C.copy()
+        self.b_train = self.b.copy()
+
+        self.me_train = self.mE_t[w].copy()
+        self.mC_train = self.mC_t.copy()
+        self.mb_train = self.mb_t.copy()
+
+        self.ve_train = self.vE_t[w].copy()
+        self.vC_train = self.vC_t.copy()
+        self.vb_train = self.vb_t.copy()
+
+        self.t_train = self.t
+        self.beta1_train = self.beta1_t
+        self.beta2_train = self.beta2_t
+
+    def _update_weights(self, w):
+        # update training things back
+        self.E[w] = self.e_train
+        self.C = self.C_train
+        self.b = self.b_train
+
+        self.mE_t[w] = self.me_train
+        self.mC_t = self.mC_train
+        self.mb_t = self.mb_train
+
+        self.vE_t[w] = self.ve_train
+        self.vC_t = self.vC_train
+        self.vb_t = self.vb_train
+
+        self.t = self.t_train
+        self.beta1_t = self.beta1_train
+        self.beta2_t = self.beta2_train
+
+    def train_adam(self, w, c, epochs=20, update_weights=False):
+        self._copy_weights(w)
+
         prob = 0
         losses = []
         for i in range(epochs):
             loss, prob = self._train_adam(w, c)
             losses.append(loss)
 
+        if update_weights:
+            self._update_weights(w)
+
         return prob, losses
 
     def _train_adam(self, w, c):
         # forward propagation
-        e = self.E[w]  # K dimensions vector
-        z = np.dot(e, self.C.T) + self.b
+        e = self.e_train
+        z = np.dot(e, self.C_train.T) + self.b_train
         exp_z = np.exp(z)
         sum_exp_z = np.sum(exp_z)
         y = exp_z / sum_exp_z
@@ -176,39 +168,41 @@ class Model:
         dz = dz / 10000
         dC = np.dot(dz.reshape(-1, 1), e.reshape(1, -1))
         db = dz
-        dE = np.dot(dz.reshape(1, -1), self.C).reshape(-1)
+        dE = np.dot(dz.reshape(1, -1), self.C_train).reshape(-1)
 
         # adam step
-        self.t = self.t + 1
-        self.beta1_t = self.beta1_t * self.beta1
-        self.beta2_t = self.beta2_t * self.beta2
+        self.t_train = self.t_train + 1
+        self.beta1_train = self.beta1_train * self.beta1
+        self.beta2_train = self.beta2_train * self.beta2
 
         # adam things
-        lr = self.lr * ma.sqrt(1 - self.beta2_t) / (1 - self.beta1_t)
-        mE = self.beta1 * self.mE_t[w] + (1 - self.beta1) * dE
-        mC = self.beta1 * self.mC_t + (1 - self.beta1) * dC
-        mb = self.beta1 * self.mb_t + (1 - self.beta1) * db
-        vE = self.beta2 * self.vE_t[w] + (1 - self.beta2) * dE * dE
-        vC = self.beta2 * self.vC_t + (1 - self.beta2) * dC * dC
-        vb = self.beta2 * self.vb_t + (1 - self.beta2) * db * db
+        lr = self.lr * ma.sqrt(1 - self.beta2_train) / (1 - self.beta1_train)
+        mE = self.beta1 * self.me_train + (1 - self.beta1) * dE
+        mC = self.beta1 * self.mC_train + (1 - self.beta1) * dC
+        mb = self.beta1 * self.mb_train + (1 - self.beta1) * db
+        vE = self.beta2 * self.ve_train + (1 - self.beta2) * dE * dE
+        vC = self.beta2 * self.vC_train + (1 - self.beta2) * dC * dC
+        vb = self.beta2 * self.vb_train + (1 - self.beta2) * db * db
 
         # update weights
-        self.E[w] -= lr * mE / (np.sqrt(vE + self.epsilon))
-        self.C -= lr * mC / (np.sqrt(vC + self.epsilon))
-        self.b -= lr * mb / (np.sqrt(vb + self.epsilon))
+        self.e_train -= lr * mE / (np.sqrt(vE + self.epsilon))
+        self.C_train -= lr * mC / (np.sqrt(vC + self.epsilon))
+        self.b_train -= lr * mb / (np.sqrt(vb + self.epsilon))
 
         # save status
-        self.mE_t[w] = mE
-        self.mC_t = mC
-        self.mb_t = mb
-        self.vE_t[w] = vE
-        self.vC_t = vC
-        self.vb_t = vb
+        self.me_train = mE
+        self.mC_train = mC
+        self.mb_train = mb
+        self.ve_train = vE
+        self.vC_train = vC
+        self.vb_train = vb
 
         # compute loss
         return loss, y[c]
 
-    def train_neg_adam(self, w, c, epochs=20, neg_size=200):
+    def train_neg_adam(self, w, c, epochs=20, neg_size=200, update_weights=False):
+        self._copy_weights(w)
+
         prob = 0
         losses = []
         for i in range(epochs):
@@ -216,13 +210,16 @@ class Model:
             prob, loss = self._train_neg_adam(w, c, neg)
             losses.append(loss)
 
+        if update_weights:
+            self._update_weights(w)
+
         return prob, losses
 
     def _train_neg_adam(self, w, c, neg):
         # forward propagation
-        e = self.E[w] # K dimensions vector
+        e = self.e_train # K dimensions vector
         labels = [c] + neg
-        z = np.dot(e, self.C[labels].T) + self.b[labels]
+        z = np.dot(e, self.C_train[labels].T) + self.b_train[labels]
         exp_z = np.exp(z)
         sum_exp_z = np.sum(exp_z)
 
@@ -232,34 +229,34 @@ class Model:
         dz = dz / 10000
         dC = np.dot(dz.reshape(-1, 1), e.reshape(1, -1))
         db = dz
-        dE = np.dot(dz.reshape(1, -1), self.C[labels]).reshape(-1)
+        dE = np.dot(dz.reshape(1, -1), self.C_train[labels]).reshape(-1)
 
         # adam step
-        self.t = self.t + 1
-        self.beta1_t = self.beta1_t * self.beta1
-        self.beta2_t = self.beta2_t * self.beta2
+        self.t_train = self.t + 1
+        self.beta1_train = self.beta1_train * self.beta1
+        self.beta2_train = self.beta2_train * self.beta2
 
         # adam things
         lr = self.lr * ma.sqrt(1 - self.beta2_t) / (1 - self.beta1_t)
-        mE = self.beta1 * self.mE_t[w] + (1 - self.beta1) * dE
-        mC = self.beta1 * self.mC_t[labels] + (1 - self.beta1) * dC
-        mb = self.beta1 * self.mb_t[labels] + (1 - self.beta1) * db
-        vE = self.beta2 * self.vE_t[w] + (1 - self.beta2) * dE * dE
-        vC = self.beta2 * self.vC_t[labels] + (1 - self.beta2) * dC * dC
-        vb = self.beta2 * self.vb_t[labels] + (1 - self.beta2) * db * db
+        mE = self.beta1 * self.me_train + (1 - self.beta1) * dE
+        mC = self.beta1 * self.mC_train[labels] + (1 - self.beta1) * dC
+        mb = self.beta1 * self.mb_train[labels] + (1 - self.beta1) * db
+        vE = self.beta2 * self.ve_train + (1 - self.beta2) * dE * dE
+        vC = self.beta2 * self.vC_train[labels] + (1 - self.beta2) * dC * dC
+        vb = self.beta2 * self.vb_train[labels] + (1 - self.beta2) * db * db
 
         # update weights
-        self.E[w] -= lr * mE / (np.sqrt(vE + self.epsilon))
-        self.C[labels] -= lr * mC / (np.sqrt(vC + self.epsilon))
-        self.b[labels] -= lr * mb / (np.sqrt(vb + self.epsilon))
+        self.e_train -= lr * mE / (np.sqrt(vE + self.epsilon))
+        self.C_train[labels] -= lr * mC / (np.sqrt(vC + self.epsilon))
+        self.b_train[labels] -= lr * mb / (np.sqrt(vb + self.epsilon))
 
         # save status
-        self.mE_t[w] = mE
-        self.mC_t[labels] = mC
-        self.mb_t[labels] = mb
-        self.vE_t[w] = vE
-        self.vC_t[labels] = vC
-        self.vb_t[labels] = vb
+        self.me_train = mE
+        self.mC_train[labels] = mC
+        self.mb_train[labels] = mb
+        self.ve_train = vE
+        self.vC_train[labels] = vC
+        self.vb_train[labels] = vb
 
         # compute loss
         prob = exp_z[0] / sum_exp_z
