@@ -14,7 +14,7 @@ if __name__ == "__main__":
     data = np.genfromtxt(args.snml_train_file, delimiter=',').astype(int)
 
     # 50 dim
-    model = Model('../models/50dim/', args.context_distribution_file, n_context_sample=600)
+    model = Model('../models/50dim/', args.context_distribution_file, n_context_sample=6000)
     total_length = 0
     start = time.time()
     for i in range(5):
