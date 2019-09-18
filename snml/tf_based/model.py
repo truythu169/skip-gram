@@ -75,10 +75,10 @@ class Model:
             self.g_optimizer_one = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.g_cost)
 
             # conditional probability of word given contexts
-            self.g_mul = tf.matmul(self.g_embed, tf.transpose(self.g_softmax_w))
-            self.g_logits = tf.reshape(tf.exp(self.g_mul + self.g_softmax_b), [-1])
-            self.g_sum_logits = tf.reduce_sum(self.g_logits)
-            self.g_prob = tf.gather(self.g_logits, tf.reshape(self.g_labels, [-1])) / self.g_sum_logits
+            # self.g_mul = tf.matmul(self.g_embed, tf.transpose(self.g_softmax_w))
+            # self.g_logits = tf.reshape(tf.exp(self.g_mul + self.g_softmax_b), [-1])
+            # self.g_sum_logits = tf.reduce_sum(self.g_logits)
+            # self.g_prob = tf.gather(self.g_logits, tf.reshape(self.g_labels, [-1])) / self.g_sum_logits
 
             # init variables
             self.g_init = tf.global_variables_initializer()
@@ -107,6 +107,14 @@ class Model:
         # set computation
         self._set_computation()
 
+    def get_neg_prob(self, word, context):
+        feed = {self.g_inputs: [word],
+                self.g_labels: [[context]]}
+
+        train_loss, _ = self.sess.run([self.g_cost, self.g_optimizer], feed_dict=feed)
+
+        return np.exp(-train_loss)
+
     def snml_length(self, word, context, epochs=10):
         print('Start training for {} contexts ...'.format(self.n_context))
         prob_sum = 0
@@ -117,7 +125,7 @@ class Model:
         for c in range(self.n_context):
             if c != context:
                 iteration += 1
-                prob = self._train_sample(word, c, epochs, update_weigh=False)
+                prob = self._train_sample(word, c, epochs, update_weight=False)
                 prob_sum += prob
 
                 if iteration % 1000 == 0:
@@ -127,7 +135,7 @@ class Model:
                     start = time.time()
 
         # Update true context and save weights
-        prob = self._train_sample(word, context, epochs, update_weigh=True)
+        prob = self._train_sample(word, context, epochs, update_weight=True)
         prob_sum += prob
         snml_length = - np.log(prob / prob_sum)
         print('Finished!')
@@ -145,7 +153,7 @@ class Model:
             c_prob = self.sample_contexts_prob[i]
 
             iteration += 1
-            prob = self._train_sample(word, c, epochs, update_weigh=False)
+            prob = self._train_sample(word, c, epochs, update_weight=False)
             prob_sum += prob / c_prob
 
             if iteration % 100 == 0:
@@ -156,20 +164,20 @@ class Model:
         prob_sum = prob_sum / self.n_context_sample
 
         # Update true context and save weights
-        prob = self._train_sample(word, context, epochs, update_weigh=True)
+        prob = self._train_sample(word, context, epochs, update_weight=True)
 
         snml_length = - np.log(prob / prob_sum)
         print('Finished!')
         return snml_length
 
-    def train(self, word, context, epochs=10, update_weigh=True, train_one=False):
+    def train(self, word, context, epochs=10, update_weight=True, train_one=False):
         if train_one:
-            prob = self._train_one_sample(word, context, epochs, update_weigh)
+            prob = self._train_one_sample(word, context, epochs, update_weight)
         else:
-            prob = self._train_sample(word, context, epochs, update_weigh)
+            prob = self._train_sample(word, context, epochs, update_weight)
         return prob
 
-    def _train_sample(self, word, context, epochs=10, update_weigh=False):
+    def _train_sample(self, word, context, epochs=10, update_weight=False):
         self._set_training_sample(epochs)
 
         # train weights
@@ -182,16 +190,17 @@ class Model:
             # print(train_loss)
 
         # estimate conditional probability of word given contexts
-        feed = {self.g_inputs: [word], self.g_labels: [[context]]}
-        p = self.sess.run(self.g_prob, feed_dict=feed)
+        # feed = {self.g_inputs: [word], self.g_labels: [[context]]}
+        # p = self.sess.run(self.g_prob, feed_dict=feed)
+        p = np.exp(-train_loss)
 
         # update weights
-        if not update_weigh:
+        if not update_weight:
             self.sess.run(self.g_reset_embedding)
             self.sess.run(self.g_reset_softmax_w)
             self.sess.run(self.g_reset_softmax_b)
 
-        return p[0]
+        return p
 
     def _train_one_sample(self, word, context, epochs=20, update_weigh=False):
         self._set_training_sample(epochs)
@@ -205,8 +214,9 @@ class Model:
             # print(train_loss)
 
         # estimate conditional probability of word given contexts
-        feed = {self.g_inputs: [word], self.g_labels: [[context]]}
-        p = self.sess.run(self.g_prob, feed_dict=feed)
+        # feed = {self.g_inputs: [word], self.g_labels: [[context]]}
+        # p = self.sess.run(self.g_prob, feed_dict=feed)
+        p = np.exp(-train_loss)
 
         # update weights
         if not update_weigh:
@@ -214,7 +224,7 @@ class Model:
             self.sess.run(self.g_reset_softmax_w)
             self.sess.run(self.g_reset_softmax_b)
 
-        return p[0]
+        return p
 
     def _set_training_sample(self, epochs):
         if epochs > self.epochs:

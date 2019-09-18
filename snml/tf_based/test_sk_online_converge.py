@@ -1,4 +1,4 @@
-from snml.np_based.model import Model
+from snml.tf_based.model import Model
 from sklearn.metrics import mean_absolute_error
 import utils.tools as utils
 from matplotlib import pyplot as plt
@@ -13,21 +13,32 @@ if __name__ == "__main__":
 
     # full data
     model_full = Model('../../../output/convergence_test/35epochs/full/100dim/',
-                       '../context_distribution.pkl', n_context_sample=600)
-    model_snml = Model('../../../output/convergence_test/35epochs/snml/100dim/',
-                       '../context_distribution.pkl', n_context_sample=600)
+                       '../../../data/processed data/split/',
+                       '../models/100dim/output/',
+                       '../context_distribution.pkl',
+                       n_train_sample=10000,
+                       n_context_sample=600,
+                       n_neg_sample=3000)
+
+    # model_snml = Model('../../../output/convergence_test/35epochs/snml/100dim/',
+    #                    '../../../data/processed data/split/',
+    #                    '../models/100dim/output/',
+    #                    '../context_distribution.pkl',
+    #                    n_train_sample=10000,
+    #                    n_context_sample=600,
+    #                    n_neg_sample=3000)
 
     p_full = []
     p_snml = []
     for datum in data:
-        ps, losses = model_snml.train_neg_adam(datum[0], datum[1], epochs=35, update_weights=True, neg_size=6000)
-        pf = model_full.get_neg_prob(datum[0], datum[1], neg_size=6000)
-        print(pf, ps)
+        # ps = model_snml.train(datum[0], datum[1], epochs=35, update_weight=True)
+        pf = model_full.get_neg_prob(datum[0], datum[1])
+        # print(pf, ps)
         p_full.append(pf)
-        p_snml.append(ps)
+        # p_snml.append(ps)
 
-    print('MAE: ', mean_absolute_error(p_snml, p_full))
-
+    # print('MAE: ', mean_absolute_error(p_snml, p_full))
+    print(p_full)
 
     # for i in range(1000):
     #     p, losses = model.train_neg_adam(8229, 9023)

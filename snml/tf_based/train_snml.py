@@ -8,7 +8,7 @@ def test_train(model, word, context):
     p_sum = []
     start = time.time()
     for i in range(100):
-        p = model.train(word, context, epochs=20, update_weigh=False)
+        p = model.train(word, context, epochs=20, update_weight=False)
         p_sum.append(p)
     end = time.time()
     print("100 loop in {:.4f} sec".format(end - start))
@@ -17,7 +17,7 @@ def test_train(model, word, context):
     p_sum = []
     start = time.time()
     for i in range(100):
-        p = model.train(word, context, epochs=20, update_weigh=False, train_one=True)
+        p = model.train(word, context, epochs=20, update_weight=False, train_one=True)
         p_sum.append(p)
     end = time.time()
     print("100 loop in {:.4f} sec".format(end - start))
@@ -26,11 +26,11 @@ def test_train(model, word, context):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', default='models/100dim/', type=str)
-    parser.add_argument('--sample_path', default='../data/processed data/split/', type=str)
-    parser.add_argument('--snml_train_file', default='../data/processed data/scope.csv', type=str)
+    parser.add_argument('--model_path', default='../models/100dim/', type=str)
+    parser.add_argument('--sample_path', default='../../../data/processed data/split/', type=str)
+    parser.add_argument('--snml_train_file', default='../../../data/processed data/scope.csv', type=str)
     parser.add_argument('--output_path', default='models/100dim/output/', type=str)
-    parser.add_argument('--context_distribution_file', default='context_distribution.pkl', type=str)
+    parser.add_argument('--context_distribution_file', default='../context_distribution.pkl', type=str)
     args = parser.parse_args()
 
     # read snml train file

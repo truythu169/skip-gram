@@ -226,7 +226,7 @@ class Model:
         # back propagation
         dz = exp_z / sum_exp_z
         dz[0] -= 1 # for true label
-        dz = dz / 10000
+        dz = dz / 100000
         dC = np.dot(dz.reshape(-1, 1), e.reshape(1, -1))
         db = dz
         dE = np.dot(dz.reshape(1, -1), self.C_train[labels]).reshape(-1)
