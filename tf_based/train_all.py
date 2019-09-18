@@ -9,5 +9,5 @@ if __name__ == "__main__":
 
     for dimension in dimension_list:
         skip_gram = SkipGram(input_path, output_path, n_embedding=dimension)
-        skip_gram.train(n_sampled=200, epochs=20, batch_size=10000, print_step=1000)
+        skip_gram.train(n_sampled=200, epochs=35, batch_size=10000, print_step=1000)
         skip_gram.export_embedding()
