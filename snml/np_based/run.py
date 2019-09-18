@@ -4,12 +4,12 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    model = Model('../models/150dim/')
+    model = Model('../models/100dim/',
+                  '../context_distribution.pkl', n_context_sample=600)
 
     p_sum = []
     start = time.time()
     for i in range(100):
-        model.reset()
         p, losses = model.train_neg_adam(8229, 9023)
         p_sum.append(p)
     end = time.time()
