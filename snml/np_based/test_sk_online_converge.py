@@ -13,15 +13,15 @@ if __name__ == "__main__":
         str_data.add(str(datum[0]) + ',' + str(datum[1]))
 
     # full data
-    model_full = Model('../../../output/convergence_test/3000samples/31epochs/full/100dim/',
+    model_full = Model('../../../output/convergence_test/3000samples/31epochs/full/50dim/',
                        '../context_distribution.pkl', n_context_sample=600)
-    model_snml = Model('../../../output/convergence_test/3000samples/31epochs/snml/100dim/',
+    model_snml = Model('../../../output/convergence_test/3000samples/31epochs/snml/50dim/',
                        '../context_distribution.pkl', n_context_sample=600)
 
     p_full = []
     p_snml = []
     percent_error = 0
-    n_sample = 1000
+    n_sample = 100
 
     for i in range(n_sample):
         datum = str_data.pop()
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         w = int(w)
         c = int(c)
 
-        ps = model_snml.train(w, c, epochs=31, neg_size=3000)
+        ps = model_snml.train(w, c, epochs=31, neg_size=3000, update_weights=True)
         pf = model_full.get_neg_prob(w, c, neg_size=3000)
 
         p_full.append(pf)

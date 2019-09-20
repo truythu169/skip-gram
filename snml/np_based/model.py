@@ -7,7 +7,7 @@ import multiprocessing
 
 class Model:
 
-    def __init__(self, data_path, context_distribution_file, n_context_sample,
+    def __init__(self, data_path, context_distribution_file,
                  learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
         self.E = utils.load_pkl(data_path + 'embedding.pkl')
         self.C = utils.load_pkl(data_path + 'softmax_w.pkl')
@@ -19,7 +19,6 @@ class Model:
 
         # adam optimizer initialize
         self.t = 256040
-        self.t_default = 256040
         self.beta1 = beta1
         self.beta2 = beta2
         self.lr = learning_rate
@@ -36,9 +35,7 @@ class Model:
         self.vb_t = np.zeros(self.V_dash)
 
         # sampling contexts for snml
-        self.sample_contexts, self.sample_contexts_prob = utils.sample_contexts(context_distribution_file,
-                                                                                n_context_sample)
-        self.n_context_sample = n_context_sample
+        self.context_distribution_file = context_distribution_file
 
     def get_prob(self, word, context):
         # forward propagation
@@ -81,64 +78,74 @@ class Model:
         snml_length = - np.log(prob / prob_sum)
         return snml_length
 
-    def snml_length_sampling(self, word, context, epochs=20, neg_size=200):
+    def snml_length_sampling(self, word, context, epochs=20, neg_size=200, n_context_sample=600):
         prob_sum = 0
+        probs = []
+        sample_contexts, sample_contexts_prob = utils.sample_contexts(self.context_distribution_file, n_context_sample)
 
         # Update all other context
-        for i in range(self.n_context_sample):
-            c = self.sample_contexts[i]
-            c_prob = self.sample_contexts_prob[i]
+        for i in range(n_context_sample):
+            c = sample_contexts[i]
+            c_prob = sample_contexts_prob[i]
 
             prob = self.train(word, c, epochs, neg_size)
             prob_sum += prob / c_prob
-        prob_sum = prob_sum / self.n_context_sample
+            probs.append(prob)
+        prob_sum = prob_sum / n_context_sample
 
-        # TODO Update true context and save weights
-        prob = self.train(word, context, epochs, neg_size)
+        # Update true context and save weights
+        prob = self.train(word, context, epochs, neg_size, update_weights=True)
         snml_length = - np.log(prob / prob_sum)
 
-        return snml_length, prob_sum
+        return snml_length, probs
 
-    def snml_length_sampling_multiprocess(self, word, context, epochs=20, neg_size=200):
+    def snml_length_sampling_multiprocess(self, word, context, epochs=20, neg_size=200, n_context_sample=600):
+        sample_contexts, sample_contexts_prob = utils.sample_contexts(self.context_distribution_file, n_context_sample)
+
         # implement pools
         job_args = [(self.E[word], c, epochs, neg_size, self.C, self.b, self.mE_t[word],
                      self.mC_t, self.mb_t, self.vE_t[word], self.vC_t, self.vb_t,
-                     self.t, self.beta1_t, self.beta2_t) for c in self.sample_contexts]
+                     self.t, self.beta1_t, self.beta2_t) for c in sample_contexts]
         p = Pool(multiprocessing.cpu_count() - 1)
         probs = p.map(self._train_job, job_args)
 
         # gather sum of probabilities
         prob_sum = 0
-        for i in range(self.n_context_sample):
-            prob_sum += probs[i] / self.sample_contexts_prob[i]
-        prob_sum = prob_sum / self.n_context_sample
+        for i in range(n_context_sample):
+            prob_sum += probs[i] / sample_contexts_prob[i]
+        prob_sum = prob_sum / n_context_sample
 
-        # TODO Update true context and save weights
-        prob = self.train(word, context, epochs, neg_size)
+        # Update true context and save weights
+        prob = self.train(word, context, epochs, neg_size, update_weights=True)
         snml_length = - np.log(prob / prob_sum)
 
-        return snml_length
+        return snml_length, probs
 
-    def train(self, w, c, epochs=20, neg_size=200):
-        # copy parameters
-        e = self.E[w].copy()
-        C_train = self.C.copy()
-        b_train = self.b.copy()
+    def train(self, w, c, epochs=20, neg_size=200, update_weights=False):
+        if update_weights:
+            prob = self._train_update_neg_adam(w, c, epochs, neg_size)
+        else:
+            # copy parameters
+            e = self.E[w].copy()
+            C_train = self.C.copy()
+            b_train = self.b.copy()
 
-        me_train = self.mE_t[w].copy()
-        mC_train = self.mC_t.copy()
-        mb_train = self.mb_t.copy()
+            me_train = self.mE_t[w].copy()
+            mC_train = self.mC_t.copy()
+            mb_train = self.mb_t.copy()
 
-        ve_train = self.vE_t[w].copy()
-        vC_train = self.vC_t.copy()
-        vb_train = self.vb_t.copy()
+            ve_train = self.vE_t[w].copy()
+            vC_train = self.vC_t.copy()
+            vb_train = self.vb_t.copy()
 
-        t_train = self.t
-        beta1_train = self.beta1_t
-        beta2_train = self.beta2_t
+            t_train = self.t
+            beta1_train = self.beta1_t
+            beta2_train = self.beta2_t
 
-        return self._train_neg_adam(e, c, epochs, neg_size, C_train, b_train, me_train, mC_train, mb_train, ve_train,
-                                    vC_train, vb_train, t_train, beta1_train, beta2_train)
+            prob = self._train_neg_adam(e, c, epochs, neg_size, C_train, b_train, me_train, mC_train, mb_train, ve_train,
+                                        vC_train, vb_train, t_train, beta1_train, beta2_train)
+
+        return prob
 
     def _train_job(self, args):
         return self._train_neg_adam(*args)
@@ -194,6 +201,61 @@ class Model:
         neg = utils.sample_negative(neg_size, {c}, vocab_size=self.V_dash)
         labels = [c] + neg
         z = np.dot(e, C_train[labels].T) + b_train[labels]
+        exp_z = np.exp(z)
+        prob = exp_z[0] / np.sum(exp_z)
+
+        return prob
+
+    def _train_update_neg_adam(self, w, c, epochs, neg_size):
+        for i in range(epochs):
+            neg = utils.sample_negative(neg_size, {c}, vocab_size=self.V_dash)
+
+            # forward propagation
+            e = self.E[w]
+            labels = [c] + neg
+            z = np.dot(e, self.C[labels].T) + self.b[labels]
+            exp_z = np.exp(z)
+            sum_exp_z = np.sum(exp_z)
+
+            # back propagation
+            dz = exp_z / sum_exp_z
+            dz[0] -= 1  # for true label
+            dz = dz / 100000
+            dC = np.dot(dz.reshape(-1, 1), e.reshape(1, -1))
+            db = dz
+            dE = np.dot(dz.reshape(1, -1), self.C[labels]).reshape(-1)
+
+            # adam step
+            self.t = self.t + 1
+            self.beta1_t = self.beta1_t * self.beta1
+            self.beta2_t = self.beta2_t * self.beta2
+
+            # adam things
+            lr = self.lr * ma.sqrt(1 - self.beta2_t) / (1 - self.beta1_t)
+            mE = self.beta1 * self.mE_t[w] + (1 - self.beta1) * dE
+            mC = self.beta1 * self.mC_t[labels] + (1 - self.beta1) * dC
+            mb = self.beta1 * self.mb_t[labels] + (1 - self.beta1) * db
+            vE = self.beta2 * self.vE_t[w] + (1 - self.beta2) * dE * dE
+            vC = self.beta2 * self.vC_t[labels] + (1 - self.beta2) * dC * dC
+            vb = self.beta2 * self.vb_t[labels] + (1 - self.beta2) * db * db
+
+            # update weights
+            self.E[w] -= lr * mE / (np.sqrt(vE + self.epsilon))
+            self.C[labels] -= lr * mC / (np.sqrt(vC + self.epsilon))
+            self.b[labels] -= lr * mb / (np.sqrt(vb + self.epsilon))
+
+            # save status
+            self.mE_t[w] = mE
+            self.mC_t[labels] = mC
+            self.mb_t[labels] = mb
+            self.vE_t[w] = vE
+            self.vC_t[labels] = vC
+            self.vb_t[labels] = vb
+
+        # get probability
+        neg = utils.sample_negative(neg_size, {c}, vocab_size=self.V_dash)
+        labels = [c] + neg
+        z = np.dot(self.E[w], self.C[labels].T) + self.b[labels]
         exp_z = np.exp(z)
         prob = exp_z[0] / np.sum(exp_z)
 
