@@ -106,6 +106,8 @@ class Model:
         job_args = [(word, c, epochs, neg_size) for c in sample_contexts]
         p = Pool(multiprocessing.cpu_count())
         probs = p.map(self._train_job, job_args)
+        p.close()
+        p.join()
 
         # gather sum of probabilities
         prob_sum = 0
