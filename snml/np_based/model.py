@@ -103,10 +103,8 @@ class Model:
         sample_contexts, sample_contexts_prob = utils.sample_contexts(self.context_distribution_file, n_context_sample)
 
         # implement pools
-        job_args = [(self.E[word], c, epochs, neg_size, self.C, self.b, self.mE_t[word],
-                     self.mC_t, self.mb_t, self.vE_t[word], self.vC_t, self.vb_t,
-                     self.t, self.beta1_t, self.beta2_t) for c in sample_contexts]
-        p = Pool(multiprocessing.cpu_count() - 1)
+        job_args = [(word, c, epochs, neg_size) for c in sample_contexts]
+        p = Pool(multiprocessing.cpu_count())
         probs = p.map(self._train_job, job_args)
 
         # gather sum of probabilities
@@ -120,6 +118,9 @@ class Model:
         snml_length = - np.log(prob / prob_sum)
 
         return snml_length, probs
+
+    def _train_job(self, args):
+        return self.train(*args)
 
     def train(self, w, c, epochs=20, neg_size=200, update_weights=False):
         if update_weights:
@@ -146,9 +147,6 @@ class Model:
                                         vC_train, vb_train, t_train, beta1_train, beta2_train)
 
         return prob
-
-    def _train_job(self, args):
-        return self._train_neg_adam(*args)
 
     def _train_neg_adam(self, e, c, epochs, neg_size, C_train, b_train, me_train, mC_train, mb_train, ve_train,
                         vC_train, vb_train, t_train, beta1_train, beta2_train):
