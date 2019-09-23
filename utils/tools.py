@@ -2,6 +2,7 @@ import numpy as np
 from collections import Counter
 import random
 import pickle
+import os
 from nltk.corpus import stopwords
 from utils.settings import config
 
@@ -116,18 +117,39 @@ def sample_negative(neg_size=200, except_sample=None, vocab_size=200):
     return negative_samples
 
 
-def sample_contexts(context_distribution_file, sample_size=1000):
+def sample_contexts(sample_size=1000, loop=0):
+    # root directory path
+    root_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # Load context distribution
+    context_distribution_file = os.path.join(root_dir, 'contexts/context_distribution.pkl')
     context_distribution = load_pkl(context_distribution_file)
-    draw = np.random.multinomial(sample_size, context_distribution)
-    sample_ids = np.where(draw > 0)[0]
 
-    samples = []
-    samples_prob = []
-    for context_id in sample_ids:
-        samples.extend([context_id] * draw[context_id])
-        samples_prob.extend([context_distribution[context_id]] * draw[context_id])
+    # Check if sample context file exits
+    file_name = os.path.join(root_dir, 'contexts/sample_contexts_{}.pkl'.format(sample_size))
+    if os.path.exists(file_name):
+        contexts = load_pkl(file_name)
+    else:
+        contexts = []
 
-    return samples, samples_prob
+    # Sample contexts
+    if loop + 1 > len(contexts):
+        for i in range(loop + 1 - len(contexts)):
+            draw = np.random.multinomial(sample_size, context_distribution)
+            sample_ids = np.where(draw > 0)[0]
+
+            samples = []
+            samples_prob = []
+            for context_id in sample_ids:
+                samples.extend([context_id] * draw[context_id])
+                samples_prob.extend([context_distribution[context_id]] * draw[context_id])
+
+            contexts.append((samples, samples_prob))
+
+        # Save result back to pkl
+        save_pkl(contexts, file_name)
+
+    return contexts[loop]
 
 
 def sample_learning_data(data_path, max_n_file, rand_size):

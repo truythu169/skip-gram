@@ -7,8 +7,7 @@ import multiprocessing
 
 class Model:
 
-    def __init__(self, data_path, context_distribution_file,
-                 learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
+    def __init__(self, data_path, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
         self.E = utils.load_pkl(data_path + 'embedding.pkl')
         self.C = utils.load_pkl(data_path + 'softmax_w.pkl')
         self.b = utils.load_pkl(data_path + 'softmax_b.pkl')
@@ -19,6 +18,7 @@ class Model:
 
         # adam optimizer initialize
         self.t = 256040
+        self.t_default = 256040
         self.beta1 = beta1
         self.beta2 = beta2
         self.lr = learning_rate
@@ -33,9 +33,6 @@ class Model:
         self.vE_t = np.zeros((self.V, self.K))
         self.vC_t = np.zeros((self.V_dash, self.K))
         self.vb_t = np.zeros(self.V_dash)
-
-        # sampling contexts for snml
-        self.context_distribution_file = context_distribution_file
 
     def get_prob(self, word, context):
         # forward propagation
@@ -79,9 +76,9 @@ class Model:
         return snml_length
 
     def snml_length_sampling(self, word, context, epochs=20, neg_size=200, n_context_sample=600):
+        sample_contexts, sample_contexts_prob = utils.sample_contexts(n_context_sample, self.t - self.t_default)
         prob_sum = 0
         probs = []
-        sample_contexts, sample_contexts_prob = utils.sample_contexts(self.context_distribution_file, n_context_sample)
 
         # Update all other context
         for i in range(n_context_sample):
@@ -100,7 +97,7 @@ class Model:
         return snml_length, probs
 
     def snml_length_sampling_multiprocess(self, word, context, epochs=20, neg_size=200, n_context_sample=600):
-        sample_contexts, sample_contexts_prob = utils.sample_contexts(self.context_distribution_file, n_context_sample)
+        sample_contexts, sample_contexts_prob = utils.sample_contexts(n_context_sample, self.t - self.t_default)
 
         # implement pools
         job_args = [(word, c, epochs, neg_size) for c in sample_contexts]
@@ -165,7 +162,7 @@ class Model:
             # back propagation
             dz = exp_z / sum_exp_z
             dz[0] -= 1  # for true label
-            dz = dz / 100000
+            dz = dz / 10000
             dC = np.dot(dz.reshape(-1, 1), e.reshape(1, -1))
             db = dz
             dE = np.dot(dz.reshape(1, -1), C_train[labels]).reshape(-1)
