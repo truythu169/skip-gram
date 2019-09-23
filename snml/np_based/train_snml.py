@@ -1,6 +1,5 @@
 from snml.np_based.model import Model
 import time
-import os
 import numpy as np
 import argparse
 
